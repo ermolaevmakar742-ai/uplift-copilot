@@ -75,7 +75,7 @@ def estimate(samples: Iterable[Sample], policy: UpliftPolicy, registry: ActionRe
     treatment = [r for rows in treatment_by_action.values() for r in rows]
     n_min = policy.min_samples_per_arm
 
-    if eligible < n_min:
+    if eligible < n_min or (control and treatment and (len(control) < n_min or len(treatment) < n_min)):
         quality = DataQuality.INSUFFICIENT_DATA
     elif control and treatment:
         experiment_rows = control + treatment
