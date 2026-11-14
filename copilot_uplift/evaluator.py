@@ -112,6 +112,7 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
     # --- integrity (never trusted, always re-derived)
     boundary_violations = sum(i.invalid for i in info.values())
     attribution_errors = 0
+    est = estimate(samples, policy, registry)
     for r in results:
         if r.relationship is not Relationship.ATTRIBUTED:
             continue
