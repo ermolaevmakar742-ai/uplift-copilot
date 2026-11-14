@@ -178,7 +178,12 @@ class TestBinding(Base):
         self.assertEqual((u["attribution_click_id"], u["attribution_source"], u["attribution_campaign"], u["attribution_creative"]),
                          (click["click_id"], "tiktok", camp["campaign_id"], "cr_01"))
         for t in ("acquisition_campaigns", "acquisition_clicks", "acquisition_leads"):
-            self.assertNotIn("1001", json.dumps([dict(r) for r in await self.q(f"SELECT * FROM {t}")], default=str))
+            rows = [dict(r) for r in await self.q(f"SELECT * FROM {t}")]
+            for row in rows:
+                self.assertFalse({"user_id", "telegram_id", "telegram_user_id"} & set(row))
+                self.assertNotIn(1001, row.values())
+                # Random opaque identifiers may coincidentally contain the decimal substring "1001".
+                self.assertNotIn("1001", [str(v) for k, v in row.items() if k not in {"click_id", "token_hash"}])
 
     async def test_repeated_bind_is_idempotent_and_token_binds_one_lead_only(self):
         _, token = await self.click()
