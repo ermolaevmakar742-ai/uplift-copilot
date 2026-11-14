@@ -1,0 +1,17 @@
+aiohttp==3.14.3
+asyncpg==0.31.0
+fastapi==0.141.1
+httpx==0.28.1
+pydantic==2.13.4
+pydantic-settings==2.15.0
+pydantic_core==2.46.4
+python-dotenv==1.2.3
+SQLAlchemy==2.0.52
+uvicorn==0.52.4
+numpy
+cryptography
+aiosqlite
+greenlet
+python-multipart
+pytest
+pytest-asyncio

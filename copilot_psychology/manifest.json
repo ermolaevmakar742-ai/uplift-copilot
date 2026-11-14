@@ -1,0 +1,30 @@
+{
+ "cards": {
+  "behavioral.ambiguity_aversion@1": "kc_6f5498a32098c291",
+  "behavioral.anchoring@1": "kc_33d800967dbeca4f",
+  "behavioral.loss_aversion@1": "kc_021f2ddea8892a6f",
+  "cognitive.choice_overload@1": "kc_be08565b3703fb7e",
+  "cognitive.confirmation_bias@1": "kc_372f38387faa5496",
+  "cognitive.ego_depletion@1": "kc_0a62492f4903d402",
+  "consumer.decision_conflict@1": "kc_9430682fc49d6054",
+  "consumer.perceived_risk@1": "kc_dbfd862307e651b3",
+  "conversation.question_asking@1": "kc_af5b443818f05fe3",
+  "conversation.repair@1": "kc_fa12452493dc0354",
+  "manipulation.dark_patterns@1": "kc_63caf747bd147c64",
+  "manipulation.dark_triad_inference@1": "kc_c555a303463466c2",
+  "manipulation.nlp_covert_influence@1": "kc_df7e106afce87c16",
+  "manipulation.scarcity_urgency@1": "kc_cf117cee1076c0cb",
+  "negotiation.interests@1": "kc_3a767447bf6fc039",
+  "negotiation.perspective_taking@1": "kc_42b77d9cd1d33dc1",
+  "objection.resistance_motivational@1": "kc_ddb858967cc052c2",
+  "objection.two_sided_message@1": "kc_545dd59f46fb777e",
+  "persuasion.but_you_are_free@1": "kc_4e408ce60a65173a",
+  "persuasion.elm@1": "kc_526af57949a3ad81",
+  "persuasion.reactance@1": "kc_ae7c82f6c34689b7",
+  "persuasion.source_credibility@1": "kc_4059cdcf7b85dc0a",
+  "trust.ability_benevolence_integrity@1": "kc_b62fedf492d91d9a",
+  "trust.repair@1": "kc_efbd29c3c4987405",
+  "trust.uncertainty_reduction@1": "kc_0c11dc6b11b34ae7"
+ },
+ "knowledge_version": "psychology.v1"
+}
