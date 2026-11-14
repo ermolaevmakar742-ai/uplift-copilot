@@ -80,8 +80,8 @@ def _experiment_observation(chat_id: int, assigned_at: datetime, outcomes: tuple
                            tuple(sorted({o.outcome_type.value for o in inwin})))
     if capture_since is None:
         return Observation(ObservationStatus.UNKNOWN, "no_outcome_capture_evidence")
-    if end < capture_since:
-        return Observation(ObservationStatus.UNKNOWN, "outcome_capture_started_later")
+    if capture_since > assigned_at:
+        return Observation(ObservationStatus.UNKNOWN, "outcome_capture_started_after_assignment")
     if evaluated_at <= end:
         return Observation(ObservationStatus.UNKNOWN, "window_open")
     return Observation(ObservationStatus.NO_OUTCOME, "experiment_window_elapsed_no_outcome")
