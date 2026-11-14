@@ -181,6 +181,16 @@ class PolicyTests(unittest.TestCase):
         shuffled = self._evaluation(Q.EXPERIMENTAL, [self.est("BUILD_TRUST", 0.05), self.est("ASK_QUESTION", 0.2)])
         self.assertEqual(recommend(self.vec(), shuffled, POLICY_V1).recommended_action, "ASK_QUESTION")
 
+    def test_incomplete_evaluation_never_marks_recommendation_production_eligible(self):
+        ev = self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)])
+        vector = self.vec()
+        for bad in (dataclasses.replace(ev, truncated=True),
+                    dataclasses.replace(ev, missing_signals={"provider_unreadable_rows:decisions": 1}),
+                    dataclasses.replace(ev, missing_signals={"experiment_assignments_without_index_decision": 1})):
+            rec = recommend(vector, bad, POLICY_V1, now=T0 + timedelta(hours=1))
+            self.assertEqual(rec.recommended_action, "ASK_QUESTION")
+            self.assertFalse(rec.eligible_for_production)
+
     def test_observational_estimate_is_shadow_only_never_production(self):
         ev = self._evaluation(Q.OBSERVATIONAL, [self.est("ASK_QUESTION", 0.2, Q.OBSERVATIONAL)])
         r = recommend(self.vec(), ev, POLICY_V1)
