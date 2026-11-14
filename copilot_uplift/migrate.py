@@ -23,6 +23,9 @@ async def ensure_schema(engine) -> None:
         if engine.dialect.name == "postgresql":
             for ddl in store.APPEND_ONLY_DDL:
                 await conn.execute(text(ddl))
+        elif engine.dialect.name == "sqlite":
+            for ddl in store.SQLITE_APPEND_ONLY_DDL:
+                await conn.execute(text(ddl))
 
 
 async def rollback_schema(engine) -> None:
