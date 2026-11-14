@@ -90,7 +90,7 @@ class BaselineEvaluationTests(unittest.TestCase):
         self.assertEqual((e.conversion_by_action[0].observed, e.conversion_by_action[0].rate), (1, 1.0))
         self.assertEqual(e.metrics["control_samples"], 1)
         ms = e.missing_signals
-        self.assertEqual(ms.get("holdout_baseline_decisions"), 1)
+        self.assertNotIn("experiment_observation_unknown:window_open", ms)
         self.assertNotIn("decisions_without_sent_boundary", ms)          # a holdout decision has no boundary by design
 
     def test_holdout_window_elapsed_no_outcome_is_no_outcome_not_unknown(self):
@@ -99,7 +99,7 @@ class BaselineEvaluationTests(unittest.TestCase):
         e0 = self._run([d], [ev_out], now=T0 + 48 * H)
         self.assertEqual(e0.conversion_by_action[0].no_outcome, 1)      # window elapsed, no outcome
         e2 = self._run([d], [ev_out], now=T0 + 6 * H)
-        self.assertEqual(e2.missing_signals.get("decisions_observation_unknown:window_open"), 1)
+        self.assertEqual(e2.missing_signals.get("experiment_observation_unknown:window_open"), 1)
         e1 = self._run([d], [], now=T0 + 48 * H)
         self.assertEqual(e1.missing_signals.get("decisions_observation_unknown:no_outcome_capture_evidence"), 1)
 
