@@ -54,18 +54,18 @@ class EstimatorTests(unittest.TestCase):
         self.assertEqual(r.treatment_n, 0)
 
     def test_experimental_with_randomized_control(self):
-        r = estimate(samples("DO_NOTHING", 1, 5, randomized=True, prob=0.1) + samples("ASK_QUESTION", 4, 2, randomized=True, prob=0.9), P)
+        r = estimate(samples("DO_NOTHING", 1, 5, randomized=True) + samples("ASK_QUESTION", 4, 2, randomized=True), P)
         self.assertEqual((r.data_quality, r.control_status, r.control_n), (Q.EXPERIMENTAL, "AVAILABLE", 6))
         e = r.estimates[0]
         self.assertEqual((e.status, e.value, e.treatment_n, e.control_n), (E.ESTIMATED, round(4 / 6 - 1 / 6, 6), 6, 6))
         self.assertEqual(e.reason, "randomized_index_decision_rate_difference_vs_control")
 
     def test_negative_uplift_is_reported_as_is(self):
-        r = estimate(samples("DO_NOTHING", 5, 1, randomized=True, prob=0.1) + samples("ASK_QUESTION", 1, 5, randomized=True, prob=0.9), P)
+        r = estimate(samples("DO_NOTHING", 5, 1, randomized=True) + samples("ASK_QUESTION", 1, 5, randomized=True), P)
         self.assertLess(r.estimates[0].value, 0)
 
     def test_arm_below_minimum_is_insufficient(self):
-        r = estimate(samples("DO_NOTHING", 3, 3, randomized=True, prob=0.1) + samples("ASK_QUESTION", 1, 0, randomized=True, prob=0.9), P)
+        r = estimate(samples("DO_NOTHING", 3, 3, randomized=True) + samples("ASK_QUESTION", 1, 0, randomized=True), P)
         self.assertEqual((r.estimates[0].status, r.estimates[0].value, r.estimates[0].reason), (E.INSUFFICIENT_DATA, None, "below_min_samples_per_arm"))
 
     def test_causal_ready_needs_recorded_assignment_probabilities(self):
@@ -109,7 +109,7 @@ class EstimatorTests(unittest.TestCase):
         estimate_row = r.estimates[0]
         self.assertEqual((estimate_row.treatment_n, estimate_row.control_n), (3, 3))
         self.assertEqual(estimate_row.value, 1.0)
-        self.assertEqual(r.stats[1].eligible, 33)  # descriptive rate retains historical rows
+        self.assertEqual({s.action_id: s.eligible for s in r.stats}["ASK_QUESTION"], 33)  # descriptive rate retains historical rows
 
     def test_multiple_treatment_actions_are_not_claimed_as_independent_effects(self):
         rows = (samples("DO_NOTHING", 3, 0, randomized=True, prob=0.1)
