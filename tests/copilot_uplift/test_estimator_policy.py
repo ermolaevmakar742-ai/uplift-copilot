@@ -141,14 +141,14 @@ class PolicyTests(unittest.TestCase):
             with self.assertRaises(PolicyError, msg=str(kw)):
                 dataclasses.replace(POLICY_V1, **kw)
 
-    def _evaluation(self, quality=Q.OBSERVATIONAL, estimates=(), ts=T0, policy_version=POLICY_V1.policy_version, integrity=None):
+    def _evaluation(self, quality=Q.OBSERVATIONAL, estimates=(), ts=T0, policy_version=POLICY_V1.policy_version, integrity=None, missing=None, truncated=False):
         metrics = dict(unique_leads=1, decisions=1, response_boundaries=1, outcomes=1, attributed_outcomes=1, actions=1,
                        eligible_samples=0, control_samples=0, treatment_samples=0)
         cov = dict(response_boundary_coverage=1.0, response_boundary_coverage_since_capture=1.0, attribution_coverage=1.0)
         integ = integrity or dict(boundary_violations=0, attribution_integrity_errors=0, leakage_violations=0)
-        eid = evaluation_id_for("estimator.v1", FEATURE_VERSION, policy_version, "ds_1", ts.isoformat(), quality.value, 0, "CONTROL_UNAVAILABLE", metrics, (), tuple(estimates))
+        eid = evaluation_id_for("estimator.v1", FEATURE_VERSION, policy_version, "ds_1", ts.isoformat(), quality.value, 0, "CONTROL_UNAVAILABLE", metrics, (), tuple(estimates), missing or {}, truncated)
         return UpliftEvaluation(eid, "estimator.v1", FEATURE_VERSION, policy_version, "ds_1", ts, quality, 0, "CONTROL_UNAVAILABLE",
-                                metrics, cov, integ, (), tuple(estimates), {}, False)
+                                metrics, cov, integ, (), tuple(estimates), missing or {}, truncated)
 
     def vec(self):
         return build_features("pd_1", 5, T0, {"stage": "new", "intent": "question"})
@@ -184,9 +184,9 @@ class PolicyTests(unittest.TestCase):
     def test_incomplete_evaluation_never_marks_recommendation_production_eligible(self):
         ev = self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)])
         vector = self.vec()
-        for bad in (dataclasses.replace(ev, truncated=True),
-                    dataclasses.replace(ev, missing_signals={"provider_unreadable_rows:decisions": 1}),
-                    dataclasses.replace(ev, missing_signals={"experiment_assignments_without_index_decision": 1})):
+        for bad in (self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)], truncated=True),
+                    self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)], missing={"provider_unreadable_rows:decisions": 1}),
+                    self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)], missing={"experiment_assignments_without_index_decision": 1})):
             rec = recommend(vector, bad, POLICY_V1, now=T0 + timedelta(hours=1))
             self.assertEqual(rec.recommended_action, "ASK_QUESTION")
             self.assertFalse(rec.eligible_for_production)
