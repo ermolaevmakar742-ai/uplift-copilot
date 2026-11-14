@@ -110,6 +110,11 @@ class GateTests(unittest.TestCase):
             self.assertFalse(report.all_passed)
             self.assertTrue(report.integrity_failed)
 
+    def test_immature_assignments_are_excluded_by_time_not_a_provider_failure(self):
+        evaluation = make_eval(missing={"experiment_assignments_immature": 3})
+        report = compute_gates(evaluation, POLICY_V1, activation_storage_ok=True)
+        self.assertTrue(report.all_passed, report.missing)
+
     def test_observational_evaluation_cannot_pass_production_gate(self):
         report = gates_for(quality=Q.OBSERVATIONAL)
         self.assertIn("offline_evaluator", report.missing)
