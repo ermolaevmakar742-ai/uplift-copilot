@@ -109,5 +109,5 @@ def compute_gates(evaluation: UpliftEvaluation | None, policy: UpliftPolicy, *, 
               or evaluation.truncated or any(v for k, v in evaluation.missing_signals.items()
                   if k.startswith("provider_unreadable_rows:")
                   or k.startswith("provider_required_table_unavailable:")
-                  or k == "ambiguous_experiment_assignments"))
+                  or k in {"ambiguous_experiment_assignments", "experiment_assignments_without_index_decision"}))
     return GateReport(gates, failed)
