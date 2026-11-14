@@ -44,28 +44,28 @@ class EstimatorTests(unittest.TestCase):
                           "FOLLOW_UP": (E.CONTROL_UNAVAILABLE, None, "no_randomized_control")})
         st = {s.action_id: s for s in r.stats}
         self.assertEqual((st["ADDRESS_OBJECTION"].rate, st["FOLLOW_UP"].rate), (0.5, round(1 / 6, 6)))
-        self.assertEqual((r.control_n, r.treatment_n, r.actions), (0, 14, 2))
+        self.assertEqual((r.control_n, r.treatment_n, r.actions), (0, 0, 2))
 
     def test_do_nothing_without_randomization_is_not_a_control(self):
         r = estimate(samples("DO_NOTHING", 2, 4) + samples("ASK_QUESTION", 3, 3), P)
         self.assertEqual((r.control_n, r.control_status), (0, "CONTROL_UNAVAILABLE"))   # a missing message is not a control group
         self.assertEqual([e.action_id for e in r.estimates], ["ASK_QUESTION"])
         self.assertEqual({s.action_id for s in r.stats}, {"DO_NOTHING", "ASK_QUESTION"})   # still reported as an action
-        self.assertEqual(r.treatment_n, 6)
+        self.assertEqual(r.treatment_n, 0)
 
     def test_experimental_with_randomized_control(self):
-        r = estimate(samples("DO_NOTHING", 1, 5, randomized=True) + samples("ASK_QUESTION", 4, 2), P)
+        r = estimate(samples("DO_NOTHING", 1, 5, randomized=True, prob=0.1) + samples("ASK_QUESTION", 4, 2, randomized=True, prob=0.9), P)
         self.assertEqual((r.data_quality, r.control_status, r.control_n), (Q.EXPERIMENTAL, "AVAILABLE", 6))
         e = r.estimates[0]
         self.assertEqual((e.status, e.value, e.treatment_n, e.control_n), (E.ESTIMATED, round(4 / 6 - 1 / 6, 6), 6, 6))
-        self.assertEqual(e.reason, "observed_rate_difference_vs_randomized_control")
+        self.assertEqual(e.reason, "randomized_index_decision_rate_difference_vs_control")
 
     def test_negative_uplift_is_reported_as_is(self):
-        r = estimate(samples("DO_NOTHING", 5, 1, randomized=True) + samples("ASK_QUESTION", 1, 5), P)
+        r = estimate(samples("DO_NOTHING", 5, 1, randomized=True, prob=0.1) + samples("ASK_QUESTION", 1, 5, randomized=True, prob=0.9), P)
         self.assertLess(r.estimates[0].value, 0)
 
     def test_arm_below_minimum_is_insufficient(self):
-        r = estimate(samples("DO_NOTHING", 3, 3, randomized=True) + samples("ASK_QUESTION", 1, 0), P)
+        r = estimate(samples("DO_NOTHING", 3, 3, randomized=True, prob=0.1) + samples("ASK_QUESTION", 1, 0, randomized=True, prob=0.9), P)
         self.assertEqual((r.estimates[0].status, r.estimates[0].value, r.estimates[0].reason), (E.INSUFFICIENT_DATA, None, "below_min_samples_per_arm"))
 
     def test_causal_ready_needs_recorded_assignment_probabilities(self):
@@ -95,11 +95,30 @@ class EstimatorTests(unittest.TestCase):
             t = s[:]
             rnd.shuffle(t)
             self.assertEqual(estimate(t, P), base)
-        self.assertEqual(ESTIMATOR_VERSION, "estimator.v1")
+        self.assertEqual(ESTIMATOR_VERSION, "estimator.v2")
         from pathlib import Path
         src = (Path(__file__).resolve().parents[2] / "copilot_uplift" / "estimator.py").read_text(encoding="utf-8")
         for w in ("import random", "datetime.now", "uuid", "requests", "openai", "anthropic"):
             self.assertNotIn(w, src)
+
+    def test_observational_rows_cannot_contaminate_randomized_estimate(self):
+        control = samples("DO_NOTHING", 0, 3, randomized=True, prob=0.1)
+        treatment = samples("ASK_QUESTION", 3, 0, randomized=True, prob=0.9)
+        historical = samples("ASK_QUESTION", 0, 30, randomized=False, prob=None, start=100)
+        r = estimate(control + treatment + historical, P)
+        estimate_row = r.estimates[0]
+        self.assertEqual((estimate_row.treatment_n, estimate_row.control_n), (3, 3))
+        self.assertEqual(estimate_row.value, 1.0)
+        self.assertEqual(r.stats[1].eligible, 33)  # descriptive rate retains historical rows
+
+    def test_multiple_treatment_actions_are_not_claimed_as_independent_effects(self):
+        rows = (samples("DO_NOTHING", 3, 0, randomized=True, prob=0.1)
+                + samples("ASK_QUESTION", 3, 0, randomized=True, prob=0.9)
+                + samples("BUILD_TRUST", 3, 0, randomized=True, prob=0.9, start=100))
+        r = estimate(rows, P)
+        self.assertTrue(all(e.status is E.INSUFFICIENT_DATA for e in r.estimates))
+        self.assertTrue(all(e.value is None for e in r.estimates))
+        self.assertTrue(all(e.reason == "multiple_treatment_actions_not_independently_randomized" for e in r.estimates))
 
 
 class PolicyTests(unittest.TestCase):
