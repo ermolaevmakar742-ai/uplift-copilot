@@ -67,17 +67,15 @@ def _baseline_window(policy: UpliftPolicy, attribution_policy: AttributionPolicy
     return timedelta(seconds=max(secs)) if secs else None
 
 
-def _baseline_observation(chat_id: int, created_at: datetime, outcomes: tuple, targets: tuple, window: timedelta,
-                          capture_since: datetime | None, evaluated_at: datetime) -> Observation:
-    """Observation for a randomized DO_NOTHING (holdout) decision: no message was sent, so there is no response boundary and
-    the window starts at the decision time. OBSERVED = ANY target outcome of this chat inside the window (counted from the
-    chat's behaviour, not from which decision attribution bookkeeping picked: the holdout silence competes with later replies
-    for the same outcome, and the later reply must not erase the holdout's outcome)."""
-    end = created_at + window
-    inwin = [o for o in outcomes if o.chat_id == chat_id and created_at < o.observed_at <= end
+def _experiment_observation(chat_id: int, assigned_at: datetime, outcomes: tuple, targets: tuple, window: timedelta,
+                             capture_since: datetime | None, evaluated_at: datetime) -> Observation:
+    """Intent-to-treat outcome for one randomized chat. Both arms use the same window from assignment time,
+    and outcomes are counted regardless of message attribution or treatment compliance."""
+    end = assigned_at + window
+    inwin = [o for o in outcomes if o.chat_id == chat_id and assigned_at < o.observed_at <= end
              and o.outcome_type.value in targets]
     if inwin:
-        return Observation(ObservationStatus.OBSERVED, "holdout_window_outcome",
+        return Observation(ObservationStatus.OBSERVED, "experiment_window_outcome",
                            tuple(sorted(o.outcome_id for o in inwin)),
                            tuple(sorted({o.outcome_type.value for o in inwin})))
     if capture_since is None:
@@ -86,8 +84,7 @@ def _baseline_observation(chat_id: int, created_at: datetime, outcomes: tuple, t
         return Observation(ObservationStatus.UNKNOWN, "outcome_capture_started_later")
     if evaluated_at <= end:
         return Observation(ObservationStatus.UNKNOWN, "window_open")
-    return Observation(ObservationStatus.NO_OUTCOME, "holdout_window_elapsed_no_outcome")
-
+    return Observation(ObservationStatus.NO_OUTCOME, "experiment_window_elapsed_no_outcome")
 
 def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: datetime,
                     registry: ActionRegistry = DEFAULT_REGISTRY,
@@ -143,10 +140,10 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
     # More than one assignment for a chat is ambiguous; fail closed instead of choosing one.
     asg_by_chat = {chat_id: rows[0] for chat_id, rows in assignments_by_chat.items() if len(rows) == 1}
     ambiguous_assignment_chats = {chat_id for chat_id, rows in assignments_by_chat.items() if len(rows) != 1}
-    experiment_sampled_chats: set[int] = set()
+    # Each assignment is one randomized unit. Decision rows from assigned chats are excluded from
+    # descriptive samples so they cannot be double-counted beside the ITT assignment sample.
     for chat_id in ambiguous_assignment_chats:
         miss("ambiguous_experiment_assignments")
-    # Provider integrity is part of the evaluation payload so activation can fail closed.
     for source, count in data.unreadable.items():
         if count:
             miss("provider_unreadable_rows:" + str(source), int(count))
@@ -154,52 +151,45 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
         for required_table in ("response_boundaries", "outcomes", "uplift_assignments"):
             if data.tables.get(required_table) is not True:
                 miss("provider_required_table_unavailable:" + required_table)
+
+    targets = tuple(policy.target_outcomes)
     for d, ref in zip(decisions, refs):
         mapped = map_decision(d.get("regime"), d.get("trigger"), version=policy.mapping_version, registry=registry,
                               decision_path=d.get("decision_path") or "llm_reply")
         action_id = mapped.action_id if (mapped.status is MappingStatus.MAPPED and mapped.sample_capable) else None
         if action_id is None:
-            miss("decisions_with_unmapped_action")                      # total without a usable action (unmapped + ambiguous)
+            miss("decisions_with_unmapped_action")
             if mapped.status is MappingStatus.MAPPED:
                 miss("decisions_mapped_not_sample_capable:" + str(mapped.behaviour_id))
             else:
                 miss(("decisions_action_ambiguous:" if mapped.status is MappingStatus.AMBIGUOUS else "decisions_action_unmapped:") + mapped.reason)
         vectors.append(build_features(d["decision_id"], d["chat_id"], d["created_at"], d.get("state")))
-        asg = asg_by_chat.get(d["chat_id"])
-        # One index decision per randomized unit (chat). Earlier history, later repeated decisions,
-        # ambiguous assignments and decisions inconsistent with the assigned arm remain descriptive only.
-        arm_matches = bool(asg and (
-            (asg[2] == "CONTROL" and action_id == BASELINE_ACTION_ID)
-            or (asg[2] == "TREATMENT" and action_id is not None and action_id != BASELINE_ACTION_ID)
-        ))
-        randomized = bool(asg and d["created_at"] >= asg[4] and arm_matches
-                          and d["chat_id"] not in experiment_sampled_chats)
-        if randomized:
-            experiment_sampled_chats.add(d["chat_id"])
-            prob = float(asg[3])
-        else:
-            prob = None
-        if action_id == BASELINE_ACTION_ID:
-            bw = _baseline_window(policy, attribution_policy)
-            if bw is None:
-                obs = Observation(ObservationStatus.UNKNOWN, "window_unknown_for_target")
-            else:
-                obs = _baseline_observation(d["chat_id"], d["created_at"], outcomes, targets, bw, capture_since, evaluated_at)
-            miss("holdout_baseline_decisions")
-        else:
-            obs = observe_decision(d["decision_id"], d["chat_id"], info[d["decision_id"]].end, results, evaluated_at=evaluated_at,
-                                   target_types=policy.target_outcomes, policy=attribution_policy, capture_since=capture_since)
+        if d["chat_id"] in asg_by_chat:
+            continue
+        obs = observe_decision(d["decision_id"], d["chat_id"], info[d["decision_id"]].end, results,
+                               evaluated_at=evaluated_at, target_types=policy.target_outcomes,
+                               policy=attribution_policy, capture_since=capture_since)
         if obs.status is ObservationStatus.UNKNOWN:
             miss("decisions_observation_unknown:" + obs.reason)
         if info[d["decision_id"]].end is None and action_id != BASELINE_ACTION_ID:
             miss("decisions_without_sent_boundary")
-        samples.append(Sample(d["decision_id"], action_id, obs.status, randomized=randomized, assignment_probability=prob))
-    # A decision-only cohort is selected if assigned chats without an index decision are silently dropped.
-    # Fail closed until the host emits a measurable index record for every randomized unit.
-    for chat_id in asg_by_chat:
-        if chat_id not in experiment_sampled_chats:
-            miss("experiment_assignments_without_index_decision")
-    est = estimate(samples, policy, registry)
+        samples.append(Sample(d["decision_id"], action_id, obs.status))
+
+    experiment_window = _baseline_window(policy, attribution_policy)
+    for assignment_id, chat_id, arm, probability, assigned_at in asg_by_chat.values():
+        action_id = BASELINE_ACTION_ID if arm == "CONTROL" else "FOLLOW_UP"
+        if action_id not in registry:
+            miss("experiment_assignment_action_unregistered")
+            continue
+        if experiment_window is None:
+            obs = Observation(ObservationStatus.UNKNOWN, "window_unknown_for_target")
+        else:
+            obs = _experiment_observation(chat_id, assigned_at, outcomes, targets, experiment_window,
+                                          capture_since, evaluated_at)
+        if obs.status is ObservationStatus.UNKNOWN:
+            miss("experiment_observation_unknown:" + obs.reason)
+        samples.append(Sample("assignment:" + assignment_id, action_id, obs.status,
+                              randomized=True, assignment_probability=float(probability)))
     for r in results:
         if r.relationship is not Relationship.ATTRIBUTED:
             miss("outcomes_not_attributed:" + r.reason)
