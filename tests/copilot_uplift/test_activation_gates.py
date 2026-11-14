@@ -24,7 +24,7 @@ def make_eval(metrics=None, quality=Q.EXPERIMENTAL, integrity=None, coverage=Non
     cov = coverage or dict(response_boundary_coverage=0.9, response_boundary_coverage_since_capture=0.95, attribution_coverage=0.4)
     integ = integrity or dict(boundary_violations=0, attribution_integrity_errors=0, leakage_violations=0)
     eid = evaluation_id_for("estimator.v1", FEATURE_VERSION, policy_version, "ds_x", ts.isoformat(), quality.value, m["eligible_samples"],
-                            "CONTROL_UNAVAILABLE", m, stats, tuple(estimates))
+                            "CONTROL_UNAVAILABLE", m, stats, tuple(estimates), missing or {}, truncated)
     return UpliftEvaluation(eid, "estimator.v1", FEATURE_VERSION, policy_version, "ds_x", ts, quality, m["eligible_samples"],
                             "CONTROL_UNAVAILABLE", m, cov, integ, stats, tuple(estimates), missing or {}, truncated)
 
