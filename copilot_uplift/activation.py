@@ -111,6 +111,13 @@ def influence_allowed(stored: StoredState, *, kill_switch: bool, policy: UpliftP
             return Influence(False, "stale_evaluation")
         if any(v for v in evaluation.integrity.values()):
             return Influence(False, "integrity_failure")
+        if evaluation.truncated or any(
+            v for k, v in evaluation.missing_signals.items()
+            if k.startswith("provider_unreadable_rows:")
+            or k.startswith("provider_required_table_unavailable:")
+            or k in {"ambiguous_experiment_assignments", "experiment_assignments_without_index_decision"}
+        ):
+            return Influence(False, "provider_data_incomplete")
         if evaluation.data_quality.rank < DataQuality(policy.min_quality_production).rank:
             return Influence(False, "data_quality_below_production_bar")
         return Influence(True, "active")
