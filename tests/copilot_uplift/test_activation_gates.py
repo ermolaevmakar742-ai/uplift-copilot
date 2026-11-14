@@ -102,6 +102,7 @@ class GateTests(unittest.TestCase):
             make_eval(missing={"provider_unreadable_rows:decisions": 1}),
             make_eval(missing={"provider_required_table_unavailable:uplift_assignments": 1}),
             make_eval(missing={"ambiguous_experiment_assignments": 1}),
+            make_eval(missing={"invalid_experiment_assignment_rows": 1}),
         ):
             report = compute_gates(evaluation, POLICY_V1, activation_storage_ok=True)
             self.assertIn("provider_data_complete", report.missing)
