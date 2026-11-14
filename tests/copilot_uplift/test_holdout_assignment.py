@@ -47,7 +47,7 @@ class ArmTests(unittest.TestCase):
 class EstimatorUpliftTests(unittest.TestCase):
     def test_randomized_control_raises_quality_to_experimental(self):
         samples = ([Sample(f"pd_c_{i}", BASELINE_ACTION_ID, O.NO_OUTCOME, True, 0.1) for i in range(6)]
-                   + [Sample(f"pd_t_{i}", "FOLLOW_UP", O.OBSERVED if i < 2 else O.NO_OUTCOME, False, None) for i in range(6)])
+                   + [Sample(f"pd_t_{i}", "FOLLOW_UP", O.OBSERVED if i < 2 else O.NO_OUTCOME, True, None) for i in range(6)])
         r = estimate(samples, P)
         self.assertEqual((r.control_status, r.data_quality), ("AVAILABLE", "EXPERIMENTAL"))
         e = {x.action_id: x for x in r.estimates}["FOLLOW_UP"]
