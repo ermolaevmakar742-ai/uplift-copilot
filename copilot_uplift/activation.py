@@ -115,6 +115,7 @@ def influence_allowed(stored: StoredState, *, kill_switch: bool, policy: UpliftP
             v for k, v in evaluation.missing_signals.items()
             if k.startswith("provider_unreadable_rows:")
             or k.startswith("provider_required_table_unavailable:")
+                         or k.startswith("experiment_observation_unknown:")
             or k in {"ambiguous_experiment_assignments", "invalid_experiment_assignment_rows"}
         ):
             return Influence(False, "provider_data_incomplete")
