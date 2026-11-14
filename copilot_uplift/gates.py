@@ -101,6 +101,7 @@ def compute_gates(evaluation: UpliftEvaluation | None, policy: UpliftPolicy, *, 
                  v for k, v in evaluation.missing_signals.items()
                  if k.startswith("provider_unreadable_rows:")
                  or k.startswith("provider_required_table_unavailable:")
+                 or k.startswith("experiment_observation_unknown:")
                  or k in {"ambiguous_experiment_assignments", "invalid_experiment_assignment_rows"})) else "truncated, unreadable, unavailable or ambiguous provider data"),
         Gate("policy_locked", is_locked(policy) and evaluation.policy_version == policy.policy_version,
              f"policy {policy.policy_version} {'locked' if is_locked(policy) else 'NOT locked'}"),
@@ -110,5 +111,6 @@ def compute_gates(evaluation: UpliftEvaluation | None, policy: UpliftPolicy, *, 
               or evaluation.truncated or any(v for k, v in evaluation.missing_signals.items()
                   if k.startswith("provider_unreadable_rows:")
                   or k.startswith("provider_required_table_unavailable:")
+                  or k.startswith("experiment_observation_unknown:")
                   or k in {"ambiguous_experiment_assignments", "invalid_experiment_assignment_rows"}))
     return GateReport(gates, failed)
