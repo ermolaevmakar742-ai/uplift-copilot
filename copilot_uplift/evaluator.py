@@ -43,7 +43,7 @@ class UpliftData:
     unreadable: Mapping[str, int] = field(default_factory=dict)
     notes: tuple = ()
     tables: Mapping[str, bool] = field(default_factory=dict)
-    assignments: tuple = ()               # (assignment_id, chat_id, arm "CONTROL"|"TREATMENT", assignment_probability)
+    assignments: tuple = ()               # (assignment_id, chat_id, arm "CONTROL"|"TREATMENT", assignment_probability, decided_at)
     assignments_total: int | None = None
 
 
@@ -127,8 +127,6 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
     # --- per-decision: action, features, observation
     capture_since = min((o.observed_at for o in outcomes), default=None)
     samples, vectors, missing = [], [], {}
-    targets = tuple(policy.target_outcomes)
-
     def miss(k: str, n: int = 1):
         if n:
             missing[k] = missing.get(k, 0) + n
