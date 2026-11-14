@@ -18,7 +18,7 @@ GOOD_METRICS = dict(unique_leads=500, decisions=900, response_boundaries=800, ou
 
 
 def make_eval(metrics=None, quality=Q.OBSERVATIONAL, integrity=None, coverage=None, ts=T0, policy_version=POLICY_V1.policy_version, estimates=(),
-              observed=("ASK_QUESTION", "BUILD_TRUST", "FOLLOW_UP"), stats=None):
+              observed=("ASK_QUESTION", "BUILD_TRUST", "FOLLOW_UP"), stats=None, missing=None, truncated=False):
     m = {**GOOD_METRICS, "actions": len(observed), **(metrics or {})}
     stats = tuple(stats) if stats is not None else tuple(ActionStats(a, 10, 3, 7, 0, 0.3) for a in observed)
     cov = coverage or dict(response_boundary_coverage=0.9, response_boundary_coverage_since_capture=0.95, attribution_coverage=0.4)
@@ -26,7 +26,7 @@ def make_eval(metrics=None, quality=Q.OBSERVATIONAL, integrity=None, coverage=No
     eid = evaluation_id_for("estimator.v1", FEATURE_VERSION, policy_version, "ds_x", ts.isoformat(), quality.value, m["eligible_samples"],
                             "CONTROL_UNAVAILABLE", m, stats, tuple(estimates))
     return UpliftEvaluation(eid, "estimator.v1", FEATURE_VERSION, policy_version, "ds_x", ts, quality, m["eligible_samples"],
-                            "CONTROL_UNAVAILABLE", m, cov, integ, stats, tuple(estimates), {}, False)
+                            "CONTROL_UNAVAILABLE", m, cov, integ, stats, tuple(estimates), missing or {}, truncated)
 
 
 def gates_for(**kw):
@@ -39,7 +39,7 @@ class GateTests(unittest.TestCase):
         r = gates_for()
         self.assertTrue(r.all_passed, r.missing)
         self.assertEqual((r.missing, r.integrity_failed), ((), False))
-        self.assertEqual(len(r.gates), 11)
+        self.assertEqual(len(r.gates), 12)
 
     def test_below_500_leads_blocks_exactly_at_500_passes(self):
         for n, ok in ((0, False), (1, False), (499, False), (500, True), (501, True), (5000, True)):
@@ -96,11 +96,28 @@ class GateTests(unittest.TestCase):
         self.assertIn("policy_locked", compute_gates(make_eval(), dataclasses.replace(POLICY_V1, min_samples_per_arm=29), activation_storage_ok=True).missing)
         self.assertIn("attribution_v2_operational", gates_for(coverage=dict(response_boundary_coverage=0.0, response_boundary_coverage_since_capture=None, attribution_coverage=None)).missing)
 
+    def test_incomplete_provider_data_blocks_activation(self):
+        for evaluation in (
+            make_eval(truncated=True),
+            make_eval(missing={"provider_unreadable_rows:decisions": 1}),
+            make_eval(missing={"provider_required_table_unavailable:uplift_assignments": 1}),
+            make_eval(missing={"ambiguous_experiment_assignments": 1}),
+        ):
+            report = compute_gates(evaluation, POLICY_V1, activation_storage_ok=True)
+            self.assertIn("provider_data_complete", report.missing)
+            self.assertFalse(report.all_passed)
+            self.assertTrue(report.integrity_failed)
+
+    def test_observational_evaluation_cannot_pass_production_gate(self):
+        report = gates_for(quality=Q.OBSERVATIONAL)
+        self.assertIn("offline_evaluator", report.missing)
+        self.assertFalse(report.all_passed)
+
     def test_no_evaluation_or_failed_evaluator_blocks_everything(self):
         for bad in (None, "x", {}):
             r = compute_gates(bad, POLICY_V1, activation_storage_ok=True)
             self.assertFalse(r.all_passed)
-            self.assertEqual(len(r.missing), 11)
+            self.assertEqual(len(r.missing), 12)
             self.assertFalse(r.integrity_failed)
         self.assertFalse(GateReport((), False).all_passed)                          # an empty report never passes
 
