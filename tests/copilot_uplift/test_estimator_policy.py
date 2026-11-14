@@ -186,7 +186,7 @@ class PolicyTests(unittest.TestCase):
         vector = self.vec()
         for bad in (self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)], truncated=True),
                     self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)], missing={"provider_unreadable_rows:decisions": 1}),
-                    self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)], missing={"experiment_assignments_without_index_decision": 1})):
+                    self._evaluation(Q.EXPERIMENTAL, [self.est("ASK_QUESTION", 0.2)], missing={"ambiguous_experiment_assignments": 1})):
             rec = recommend(vector, bad, POLICY_V1, now=T0 + timedelta(hours=1))
             self.assertEqual(rec.recommended_action, "ASK_QUESTION")
             self.assertFalse(rec.eligible_for_production)
