@@ -134,7 +134,7 @@ class BaselineEvaluationTests(unittest.TestCase):
 
     def test_only_one_index_decision_per_randomized_chat(self):
         d1, d2 = self._dec(1, T0), self._dec(2, T0 + H)
-        e = self._run([d1, d2], [], assignments=(self.ASG,), now=T0 + 48 * H)
+        e = self._run([d1, d2], [self._out("o0", T0 - 5 * H, chat=9)], assignments=(self.ASG,), now=T0 + 48 * H)
         self.assertEqual(e.metrics["control_samples"], 1)
         self.assertEqual(e.metrics["treatment_samples"], 0)
         self.assertNotIn("experiment_assignments_without_index_decision", e.missing_signals)
