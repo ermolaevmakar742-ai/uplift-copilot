@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from copilot_prediction.contract import ObservationStatus as O
 from copilot_uplift.actions import BASELINE_ACTION_ID
-from copilot_uplift.assignment import (CONTROL, CONTROL_SHARE, KILL_SWITCH_ENV, SALT, TREATMENT, arm_for,
+from copilot_uplift.assignment import (CONTROL, CONTROL_SHARE, KILL_SWITCH_ENV, SALT, SALT_ENV, TREATMENT, arm_for,
                                     assigned_arm, assignment_id, probability)
 from copilot_uplift.evaluator import UpliftData, evaluate_uplift
 from copilot_uplift.estimator import Sample, estimate
@@ -32,10 +32,12 @@ class ArmTests(unittest.TestCase):
     def test_kill_switch_off_means_no_assignment(self):
         self.assertIsNone(assigned_arm(1, env={}))
         self.assertIsNone(assigned_arm(1, env={KILL_SWITCH_ENV: "false"}))
-        control_chat = next(cid for cid in range(10000) if arm_for(cid) == CONTROL)
-        self.assertIsNone(assigned_arm(control_chat, env={KILL_SWITCH_ENV: "false"}))
-        self.assertEqual(assigned_arm(control_chat, env={KILL_SWITCH_ENV: "true"}), CONTROL)
-        self.assertIn(assigned_arm(7, env={KILL_SWITCH_ENV: "true"}), (CONTROL, TREATMENT))
+        test_salt = "unit-test-assignment-salt-32-characters"
+        control_chat = next(cid for cid in range(10000) if arm_for(cid, salt=test_salt) == CONTROL)
+        self.assertIsNone(assigned_arm(control_chat, env={KILL_SWITCH_ENV: "false", SALT_ENV: test_salt}))
+        self.assertIsNone(assigned_arm(control_chat, env={KILL_SWITCH_ENV: "true"}))  # no public fallback in production
+        self.assertEqual(assigned_arm(control_chat, env={KILL_SWITCH_ENV: "true", SALT_ENV: test_salt}), CONTROL)
+        self.assertIn(assigned_arm(7, env={KILL_SWITCH_ENV: "true", SALT_ENV: test_salt}), (CONTROL, TREATMENT))
 
     def test_assignment_id_stable_and_probability(self):
         self.assertEqual(assignment_id(5, CONTROL), assignment_id(5, CONTROL))
