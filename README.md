@@ -26,7 +26,7 @@ Uplift Copilot — исследовательский прототип архи�
 | `copilot_outcomes` | Контракты, capture и join outcomes | Адаптеры и хранилище; требует реальных источников |
 | `copilot_attribution` | Direct и boundary-based temporal attribution | Детерминированные правила и evaluator |
 | `copilot_evidence` | Provenance, fusion и arbitration evidence | Библиотека контрактов/адаптеров |
-| `copilot_uplift` | Holdout assignment, offline evaluation, policy, gates и activation | Экспериментальный evaluator; production-допуск требует исправления известных методологических ограничений |
+| `copilot_uplift` | Holdout assignment, offline evaluation, policy, gates и activation | ITT evaluator v2 с fail-closed activation gates; production-допуск остаётся заблокированным до статистической валидации и host/safety-интеграции |
 | `copilot_bandit` | LinUCB, replay и reward contracts | Research/shadow; не production learner |
 | `copilot_prediction` | Наблюдения и статусы outcome | Детерминированные вспомогательные правила |
 | `copilot_learning` | Critic и learner для теневых данных | Изолированные модули; интеграция зависит от host |
@@ -122,7 +122,7 @@ python -m pytest tests -q
 
 ### Статус тестирования
 
-В README предыдущей версии и сообщении последнего публичного commit заявлено **896 passed / 0 failed**. Это результат, сообщённый автором проекта; в репозитории на момент обновления README нет GitHub Actions workflow и нет сохранённых CI-run результатов. Поэтому число не следует воспринимать как независимо проверенный CI-статус.
+В предыдущем README было заявлено **896 passed / 0 failed** — это исторический результат, сообщённый автором. В этой ветке добавлен GitHub Actions workflow, который запускает полный pytest suite; число тестов и результат нужно брать из актуального зелёного run, а не из старого README.
 
 ## Запуск миграций
 
@@ -169,7 +169,7 @@ python -m copilot_decisions.migrate --apply
 1. **Статистическая неопределённость.** Estimator v2 считает ITT-разницу долей, но пока не выдаёт доверительные интервалы, стандартные ошибки, p-value или поправки на множественные сравнения. Значение разницы нельзя трактовать как доказанный эффект без отдельного inference-слоя.
 2. **Границы treatment.** Текущий assignment-контракт оценивает назначение обычного proactive follow-up против holdout. Он не рандомизирует конкретные тексты или креативы; оценка не доказывает эффективность отдельного сообщения.
 3. **Неполные выборки.** SQL provider ограничивает загрузку decisions, outcomes, boundaries и assignments. Evaluator сохраняет `truncated`, unreadable rows и недоступность обязательных таблиц; activation gate, recommendation и influence boundary теперь блокируют production eligibility при таких проблемах. Реальный полноразмерный production snapshot ещё нужно проверить.
-4. **Окно capture.** Отсутствие outcome по-прежнему зависит от earliest known outcome как косвенного признака работающего capture. Нужен явный health/coverage marker или heartbeat источника.
+4. **Окно capture.** Отрицательный ITT-outcome теперь считается только если earliest known outcome предшествует времени назначения; если capture начался позже, sample остаётся UNKNOWN и production eligibility блокируется. Но раннее событие не доказывает непрерывную работу capture: нужен явный health/coverage marker или heartbeat источника.
 5. **Bandit/reward.** `LinUCBBackend` хранит состояние в памяти процесса; стандартный reward resolver не задаёт числовой reward, а параметры reward v1 помечены как неподтверждённые. Это research/shadow-компонент, а не готовый persistently trained production bandit.
 6. **Responsible Gambling signals.** Психологический shadow-hook получает ограниченный decision snapshot; реальные risk-сигналы несовершеннолетия, самоисключения и финансового кризиса не поступают в этот путь из проверенного источника. Этот модуль нельзя считать работающим enforcement-контуром.
 7. **Неизменяемость ledger.** В PostgreSQL текущие триггеры блокируют `UPDATE`, но не обеспечивают запрет `DELETE`; для SQLite эквивалентная защита триггерами не создаётся. Нужны DB-level ограничения и отдельные least-privilege роли.
