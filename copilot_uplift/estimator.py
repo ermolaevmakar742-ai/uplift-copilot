@@ -1,13 +1,13 @@
-"""Uplift estimator v2: descriptive rates are separated from randomized experiment estimates.
+"""Uplift estimator v2: descriptive decision rates and randomized ITT contrasts are separate.
 
-Only one post-assignment index decision per chat can enter the experiment. The caller marks it
-randomized=True only when the decision is after assignment and matches the assigned arm:
-CONTROL -> DO_NOTHING; TREATMENT -> a registered non-control action.
+The evaluator creates one randomized Sample per mature assignment unit (chat_id). Its action_id
+represents the assigned arm: CONTROL -> DO_NOTHING; TREATMENT -> FOLLOW_UP. It is not a
+message-level exposure or a claim that a message was successfully sent.
 
-The experiment assigns only a generic TREATMENT arm, not individual actions. Therefore an
-action-specific contrast is emitted only when exactly one treatment action is present in the
-randomized sample. Multiple treatment actions are not independently randomized and are not
-compared as if they were. Descriptive rates remain available for all eligible observations.
+Only Samples marked randomized=True enter the causal contrast. Non-randomized decision samples
+remain descriptive diagnostics. The current experiment randomizes a generic follow-up arm; if
+multiple treatment action IDs appear in one randomized sample, no action-specific contrast is
+reported because those actions were not independently randomized.
 """
 from dataclasses import dataclass
 from typing import Iterable
