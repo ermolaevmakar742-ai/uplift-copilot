@@ -119,8 +119,14 @@ def recommend(vector: FeatureVector | None, evaluation: UpliftEvaluation | None,
         if len(cands) > 1 and cands[0].value == cands[1].value:
             return _none(policy, q.value, "tie_between_actions")
         top = cands[0]
+        provider_complete = (not evaluation.truncated and not any(
+            v for k, v in evaluation.missing_signals.items()
+            if k.startswith("provider_unreadable_rows:")
+            or k.startswith("provider_required_table_unavailable:")
+            or k in {"ambiguous_experiment_assignments", "experiment_assignments_without_index_decision"}
+        ))
         return Recommendation(top.action_id, cands[1].action_id if len(cands) > 1 else None, top.value, q.value,
                               policy.policy_version, "positive_estimated_uplift",
-                              q.rank >= DataQuality(policy.min_quality_production).rank)
+                              q.rank >= DataQuality(policy.min_quality_production).rank and provider_complete)
     except Exception:
         return Recommendation(None, None, None, "INSUFFICIENT_DATA", getattr(policy, "policy_version", "unknown"), "malformed_input", False)
