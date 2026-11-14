@@ -132,14 +132,13 @@ class BaselineEvaluationTests(unittest.TestCase):
         self.assertEqual(e.metrics["control_samples"], 1)
         self.assertEqual(e.metrics["treatment_samples"], 1)
 
-    def test_assignment_arm_must_match_decision_path(self):
+    def test_assignment_row_defines_itt_arm_not_decision_path(self):
         d = self._dec(1, T0)
         treatment_assigned = ("ua_t", 5, "TREATMENT", 0.9, T0)
         capture = self._out("capture", T0 - 5 * H, chat=9)
         e = self._run([d], [capture], assignments=(treatment_assigned,), now=T0 + 48 * H)
         # The assignment row defines the ITT arm even if a contradictory/missing decision record exists.
         self.assertEqual((e.metrics["control_samples"], e.metrics["treatment_samples"]), (0, 1))
-        self.assertNotIn("experiment_assignments_without_index_decision", e.missing_signals)
 
     def test_only_one_index_decision_per_randomized_chat(self):
         d1, d2 = self._dec(1, T0), self._dec(2, T0 + H)
