@@ -192,10 +192,15 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
             miss("experiment_assignment_action_unregistered")
             continue
         if experiment_window is None:
-            obs = Observation(ObservationStatus.UNKNOWN, "window_unknown_for_target")
-        else:
-            obs = _experiment_observation(chat_id, assigned_at, outcomes, targets, experiment_window,
-                                          capture_since, evaluated_at)
+            miss("experiment_observation_unknown:window_unknown_for_target")
+            continue
+        # Exclude immature assignments by time only, never by observed outcome. This avoids
+        # treating an open window as a negative while allowing a rolling experiment to mature.
+        if evaluated_at <= assigned_at + experiment_window:
+            miss("experiment_assignments_immature")
+            continue
+        obs = _experiment_observation(chat_id, assigned_at, outcomes, targets, experiment_window,
+                                      capture_since, evaluated_at)
         if obs.status is ObservationStatus.UNKNOWN:
             miss("experiment_observation_unknown:" + obs.reason)
         samples.append(Sample("assignment:" + assignment_id, action_id, obs.status,
