@@ -216,7 +216,7 @@ class EvaluationContractTests(unittest.TestCase):
                 UpliftEvaluation.from_dict(bad)
         for path, v in ((("evaluation_id",), "ue_forged"), (("metrics", "unique_leads"), 999), (("data_quality",), "CAUSAL_READY"),
                         (("contract_version",), "x"), (("coverage", "attribution_coverage"), 2), (("integrity", "leakage_violations"), -1),
-                        (("sample_count",), 7), (("extra",), 1), (("truncated",), "no"), (("control_status",), "MAYBE")):
+                        (("sample_count",), 7), (("extra",), 1), (("truncated",), "no"), (("truncated",), True), (("missing_signals",), {"tampered": 1}), (("control_status",), "MAYBE")):
             bad = copy.deepcopy(d)
             cur = bad
             for p in path[:-1]:
