@@ -64,7 +64,7 @@ def _trigger_ddl(t: str):
     return (f"""CREATE OR REPLACE FUNCTION {t}_append_only() RETURNS trigger AS $$
        BEGIN RAISE EXCEPTION '{t} is immutable'; END; $$ LANGUAGE plpgsql""",
             f"DROP TRIGGER IF EXISTS trg_{t}_append_only ON {t}",
-            f"""CREATE TRIGGER trg_{t}_append_only BEFORE UPDATE ON {t}
+            f"""CREATE TRIGGER trg_{t}_append_only BEFORE UPDATE OR DELETE ON {t}
        FOR EACH ROW EXECUTE FUNCTION {t}_append_only()""")
 
 
