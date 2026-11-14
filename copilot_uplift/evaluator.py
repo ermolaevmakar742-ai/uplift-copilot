@@ -133,10 +133,22 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
         if n:
             missing[k] = missing.get(k, 0) + n
     assignments_by_chat: dict[int, list[tuple]] = {}
+    seen_assignment_ids: set[str] = set()
     for assignment in data.assignments:
-        if (isinstance(assignment, tuple) and len(assignment) == 5
-                and assignment[2] in ("CONTROL", "TREATMENT") and isinstance(assignment[1], int)):
-            assignments_by_chat.setdefault(assignment[1], []).append(assignment)
+        valid = (
+            isinstance(assignment, tuple) and len(assignment) == 5
+            and isinstance(assignment[0], str) and bool(assignment[0])
+            and isinstance(assignment[1], int) and not isinstance(assignment[1], bool)
+            and assignment[2] in ("CONTROL", "TREATMENT")
+            and isinstance(assignment[3], (int, float)) and not isinstance(assignment[3], bool)
+            and 0.0 < float(assignment[3]) < 1.0
+            and isinstance(assignment[4], datetime) and assignment[4].tzinfo is not None
+        )
+        if not valid or assignment[0] in seen_assignment_ids:
+            miss("invalid_experiment_assignment_rows")
+            continue
+        seen_assignment_ids.add(assignment[0])
+        assignments_by_chat.setdefault(assignment[1], []).append(assignment)
     # More than one assignment for a chat is ambiguous; fail closed instead of choosing one.
     asg_by_chat = {chat_id: rows[0] for chat_id, rows in assignments_by_chat.items() if len(rows) == 1}
     ambiguous_assignment_chats = {chat_id for chat_id, rows in assignments_by_chat.items() if len(rows) != 1}
