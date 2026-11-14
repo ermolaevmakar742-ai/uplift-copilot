@@ -145,14 +145,14 @@ python -m copilot_decisions.migrate --apply
 | Переменная | Назначение | Безопасное значение по умолчанию |
 |---|---|---|
 | `COPILOT_DECISION_LEDGER_ENABLED` | Запись decision ledger | `false` |
-| `COPILOT_UPLIFT_ASSIGN_ENABLED` | Назначение holdout/treatment для follow-up эксперимента | `false` |
+| `COPILOT_UPLIFT_ASSIGN_ENABLED` | Назначение holdout/treatment для follow-up эксперимента | `false` |\n| `COPILOT_UPLIFT_ASSIGN_SALT` | Секретный salt для псевдослучайного назначения; минимум 32 символа, обязателен при включении assignment | не задан |
 | `COPILOT_UPLIFT_SHADOW_ENABLED` | Shadow Uplift capture | `false` |
 | `COPILOT_UPLIFT_ENABLED` | Kill switch влияния Uplift | `false` |
 | `COPILOT_BANDIT_SHADOW_ENABLED` | Shadow-рекомендация bandit | `false` |
 | `COPILOT_BANDIT_ENABLED` | Флаг production-влияния bandit | `false` |
 | `COPILOT_PSYCHOLOGY_SHADOW_ENABLED` | Shadow assessment психологии | `false` |
 
-Не включайте флаги на основании только этого списка. Перед включением проверьте конфигурацию host-приложения, права доступа, схему БД, capture completeness, журналирование и отдельные safety-контроли. Секреты и master key должны передаваться через защищённое хранилище конфигурации, а не коммититься в Git.
+Не включайте флаги на основании только этого списка. `COPILOT_UPLIFT_ASSIGN_SALT` должен быть случайным секретом из secret manager, неизменным в течение эксперимента; ротация меняет назначение chat и требует новой версии эксперимента. Без salt assignment отказывает безопасно. Перед включением проверьте конфигурацию host-приложения, права доступа, схему БД, capture completeness, журналирование и отдельные safety-контроли. Секреты и master key должны передаваться через защищённое хранилище конфигурации, а не коммититься в Git.
 
 ## Безопасность и Responsible Gambling
 
