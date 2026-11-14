@@ -112,7 +112,6 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
     # --- integrity (never trusted, always re-derived)
     boundary_violations = sum(i.invalid for i in info.values())
     attribution_errors = 0
-    est = estimate(samples, policy, registry)
     for r in results:
         if r.relationship is not Relationship.ATTRIBUTED:
             continue
@@ -191,6 +190,7 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
             miss("experiment_observation_unknown:" + obs.reason)
         samples.append(Sample("assignment:" + assignment_id, action_id, obs.status,
                               randomized=True, assignment_probability=float(probability)))
+    est = estimate(samples, policy, registry)
     for r in results:
         if r.relationship is not Relationship.ATTRIBUTED:
             miss("outcomes_not_attributed:" + r.reason)
