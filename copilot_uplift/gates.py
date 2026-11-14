@@ -72,7 +72,7 @@ def compute_gates(evaluation: UpliftEvaluation | None, policy: UpliftPolicy, *, 
         return GateReport(tuple(Gate(n, False, "no evaluation") for n in (
             "unique_leads", "attribution_v2_operational", "response_boundary_integrity", "outcome_pipeline_operational",
             "eligible_outcomes_nonzero", "action_variation", "offline_evaluator", "no_data_leakage",
-            "no_attribution_integrity_errors", "policy_locked", "activation_storage")), False)
+            "no_attribution_integrity_errors", "provider_data_complete", "policy_locked", "activation_storage")), False)
     m, i, c = evaluation.metrics, evaluation.integrity, evaluation.coverage
     leads, need = m["unique_leads"], policy.min_unique_leads
     seen = observed_actions(evaluation, registry)
@@ -86,14 +86,28 @@ def compute_gates(evaluation: UpliftEvaluation | None, policy: UpliftPolicy, *, 
         Gate("eligible_outcomes_nonzero", m["attributed_outcomes"] >= 1, f"{m['attributed_outcomes']} attributed outcomes"),
         Gate("action_variation", len(seen) >= 2 and m["actions"] == len(seen),
              f"{len(seen)} observed mapped actions with eligible samples: {', '.join(seen) or 'none'} (registry size is irrelevant)"),
-        Gate("offline_evaluator", evaluation.data_quality is not DataQuality.INSUFFICIENT_DATA,
-             f"data quality {evaluation.data_quality.value}"),
+        Gate("offline_evaluator", evaluation.data_quality.rank >= DataQuality(policy.min_quality_production).rank,
+             f"data quality {evaluation.data_quality.value}; production requires {policy.min_quality_production}"),
         Gate("no_data_leakage", i["leakage_violations"] == 0, f"{i['leakage_violations']} leakage violations"),
         Gate("no_attribution_integrity_errors", i["attribution_integrity_errors"] == 0,
              f"{i['attribution_integrity_errors']} attribution integrity errors"),
+        Gate("provider_data_complete", not evaluation.truncated
+             and not any(v for k, v in evaluation.missing_signals.items()
+                         if k.startswith("provider_unreadable_rows:")
+                         or k.startswith("provider_required_table_unavailable:")
+                         or k == "ambiguous_experiment_assignments"),
+             "complete provider data" if (not evaluation.truncated and not any(
+                 v for k, v in evaluation.missing_signals.items()
+                 if k.startswith("provider_unreadable_rows:")
+                 or k.startswith("provider_required_table_unavailable:")
+                 or k == "ambiguous_experiment_assignments")) else "truncated, unreadable, unavailable or ambiguous provider data"),
         Gate("policy_locked", is_locked(policy) and evaluation.policy_version == policy.policy_version,
              f"policy {policy.policy_version} {'locked' if is_locked(policy) else 'NOT locked'}"),
         Gate("activation_storage", bool(activation_storage_ok), "available" if activation_storage_ok else "not migrated / unavailable"),
     )
-    failed = i["leakage_violations"] > 0 or i["attribution_integrity_errors"] > 0 or i["boundary_violations"] > 0
+    failed = (i["leakage_violations"] > 0 or i["attribution_integrity_errors"] > 0 or i["boundary_violations"] > 0
+              or evaluation.truncated or any(v for k, v in evaluation.missing_signals.items()
+                  if k.startswith("provider_unreadable_rows:")
+                  or k.startswith("provider_required_table_unavailable:")
+                  or k == "ambiguous_experiment_assignments"))
     return GateReport(gates, failed)
