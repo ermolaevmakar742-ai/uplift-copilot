@@ -194,6 +194,11 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
         if info[d["decision_id"]].end is None and action_id != BASELINE_ACTION_ID:
             miss("decisions_without_sent_boundary")
         samples.append(Sample(d["decision_id"], action_id, obs.status, randomized=randomized, assignment_probability=prob))
+    # A decision-only cohort is selected if assigned chats without an index decision are silently dropped.
+    # Fail closed until the host emits a measurable index record for every randomized unit.
+    for chat_id in asg_by_chat:
+        if chat_id not in experiment_sampled_chats:
+            miss("experiment_assignments_without_index_decision")
     est = estimate(samples, policy, registry)
     for r in results:
         if r.relationship is not Relationship.ATTRIBUTED:
