@@ -205,16 +205,18 @@ class UpliftEvaluation:
 
 
 def evaluation_id_for(estimator_version, feature_version, policy_version, dataset_version, ts_iso, data_quality, sample_count,
-                      control_status, metrics, stats, estimates, missing_signals=None, truncated=False) -> str:
+                      control_status, metrics, stats, estimates, missing_signals=None, truncated=False, coverage=None, integrity=None) -> str:
     return _h("ue_", estimator_version, feature_version, policy_version, dataset_version, ts_iso, data_quality, sample_count,
-              control_status, dict(metrics), [x.to_dict() for x in stats], [x.to_dict() for x in estimates],
+              control_status, dict(metrics), dict(coverage or {}), dict(integrity or {}),
+              [x.to_dict() for x in stats], [x.to_dict() for x in estimates],
               dict(missing_signals or {}), bool(truncated))
 
 
 def make_evaluation_id(e: "UpliftEvaluation") -> str:
     return evaluation_id_for(e.estimator_version, e.feature_version, e.policy_version, e.dataset_version,
                              e.evaluation_timestamp.isoformat(), e.data_quality.value, e.sample_count, e.control_status,
-                             _thaw(e.metrics), e.conversion_by_action, e.uplift_estimates, _thaw(e.missing_signals), e.truncated)
+                             _thaw(e.metrics), e.conversion_by_action, e.uplift_estimates, _thaw(e.missing_signals), e.truncated,
+                             _thaw(e.coverage), _thaw(e.integrity))
 
 
 @dataclass(frozen=True)
