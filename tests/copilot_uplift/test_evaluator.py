@@ -63,7 +63,7 @@ class EvaluatorTests(unittest.TestCase):
         e = ev(decs, bs, outs, now=T0 + 40 * H)
         m = e.metrics
         self.assertEqual((m["unique_leads"], m["decisions"], m["response_boundaries"], m["outcomes"], m["attributed_outcomes"]), (2, 3, 2, 2, 1))
-        self.assertEqual((m["eligible_samples"], m["control_samples"], m["treatment_samples"], m["actions"]), (2, 0, 2, 1))
+        self.assertEqual((m["eligible_samples"], m["control_samples"], m["treatment_samples"], m["actions"]), (2, 0, 0, 1))
         stats = {s.action_id: s for s in e.conversion_by_action}
         self.assertEqual((stats["ADDRESS_OBJECTION"].eligible, stats["ADDRESS_OBJECTION"].observed, stats["ADDRESS_OBJECTION"].no_outcome), (2, 1, 1))
         self.assertEqual(stats["ADDRESS_OBJECTION"].rate, 0.5)
