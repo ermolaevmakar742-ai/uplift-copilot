@@ -257,8 +257,7 @@ class KillSwitchAndInfluenceTests(unittest.TestCase):
         self.assertEqual(self.allowed(now=T0 + timedelta(days=8)).reason, "stale_evaluation")
         incomplete = make_eval(quality=Q.EXPERIMENTAL, truncated=True)
         self.assertEqual(self.allowed(evaluation=incomplete).reason, "provider_data_incomplete")
-        unreadable = dataclasses.replace(make_eval(quality=Q.EXPERIMENTAL),
-                                         missing_signals={"provider_unreadable_rows:decisions": 1})
+        unreadable = make_eval(quality=Q.EXPERIMENTAL, missing={"provider_unreadable_rows:decisions": 1})
         self.assertEqual(self.allowed(evaluation=unreadable).reason, "provider_data_incomplete")
         bad = make_eval(quality=Q.EXPERIMENTAL, integrity=dict(boundary_violations=0, attribution_integrity_errors=1, leakage_violations=0))
         self.assertEqual(self.allowed(evaluation=bad).reason, "integrity_failure")
