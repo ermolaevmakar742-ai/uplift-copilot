@@ -99,7 +99,8 @@ class BaselineEvaluationTests(unittest.TestCase):
         e0 = self._run([d], [ev_out], now=T0 + 48 * H)
         self.assertEqual(e0.conversion_by_action[0].no_outcome, 1)      # window elapsed, no outcome
         e2 = self._run([d], [ev_out], now=T0 + 6 * H)
-        self.assertEqual(e2.missing_signals.get("experiment_observation_unknown:window_open"), 1)
+        self.assertEqual(e2.missing_signals.get("experiment_assignments_immature"), 1)
+        self.assertEqual(e2.metrics["control_samples"], 0)
         e1 = self._run([d], [], now=T0 + 48 * H)
         self.assertEqual(e1.missing_signals.get("experiment_observation_unknown:no_outcome_capture_evidence"), 1)
 
