@@ -19,7 +19,7 @@ from typing import Any, Mapping
 
 from copilot_evidence.contracts import ContractError, _dt, _enum, _freeze, _int, _thaw
 
-EVALUATION_CONTRACT_VERSION = "uplift_evaluation.v1"
+EVALUATION_CONTRACT_VERSION = "uplift_evaluation.v2"
 SHADOW_CONTRACT_VERSION = "uplift_shadow.v1"
 ACTIVATION_CONTRACT_VERSION = "uplift_activation.v1"
 
@@ -147,6 +147,8 @@ class UpliftEvaluation:
         s(self, "evaluation_timestamp", _dt("evaluation_timestamp", self.evaluation_timestamp))
         if self.contract_version != EVALUATION_CONTRACT_VERSION:
             raise ContractError("unsupported contract_version")
+        if not isinstance(self.truncated, bool):
+            raise ContractError("truncated must be bool")
         for f in ("estimator_version", "feature_version", "policy_version", "dataset_version"):
             if not (isinstance(getattr(self, f), str) and getattr(self, f)):
                 raise ContractError(f"{f} required")
