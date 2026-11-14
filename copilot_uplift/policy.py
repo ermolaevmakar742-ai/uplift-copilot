@@ -95,8 +95,9 @@ def _none(policy, quality, reason) -> Recommendation:
 
 def recommend(vector: FeatureVector | None, evaluation: UpliftEvaluation | None, policy: UpliftPolicy,
               registry: ActionRegistry = DEFAULT_REGISTRY, now: datetime | None = None) -> Recommendation:
-    """Never raises for bad inputs: anything unusable yields (None, reason). v1 estimates are marginal (not conditioned on
-    the feature vector); the vector is required only to prove the decision has leak-free pre-action features."""
+    """Never raises for bad inputs: anything unusable yields (None, reason). v2 estimates are assignment-level ITT
+    effects, not CATE and not conditioned on the feature vector; the vector is required only to prove that the
+    decision has leak-free pre-action features."""
     try:
         if not isinstance(policy, UpliftPolicy):
             return Recommendation(None, None, None, "INSUFFICIENT_DATA", "unknown", "missing_policy", False)
@@ -123,7 +124,7 @@ def recommend(vector: FeatureVector | None, evaluation: UpliftEvaluation | None,
             v for k, v in evaluation.missing_signals.items()
             if k.startswith("provider_unreadable_rows:")
             or k.startswith("provider_required_table_unavailable:")
-                         or k.startswith("experiment_observation_unknown:")
+            or k.startswith("experiment_observation_unknown:")
             or k in {"ambiguous_experiment_assignments", "invalid_experiment_assignment_rows"}
         ))
         return Recommendation(top.action_id, cands[1].action_id if len(cands) > 1 else None, top.value, q.value,
