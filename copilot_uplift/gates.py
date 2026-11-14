@@ -95,12 +95,12 @@ def compute_gates(evaluation: UpliftEvaluation | None, policy: UpliftPolicy, *, 
              and not any(v for k, v in evaluation.missing_signals.items()
                          if k.startswith("provider_unreadable_rows:")
                          or k.startswith("provider_required_table_unavailable:")
-                         or k == "ambiguous_experiment_assignments"),
+                         or k in {"ambiguous_experiment_assignments", "experiment_assignments_without_index_decision"}),
              "complete provider data" if (not evaluation.truncated and not any(
                  v for k, v in evaluation.missing_signals.items()
                  if k.startswith("provider_unreadable_rows:")
                  or k.startswith("provider_required_table_unavailable:")
-                 or k == "ambiguous_experiment_assignments")) else "truncated, unreadable, unavailable or ambiguous provider data"),
+                 or k in {"ambiguous_experiment_assignments", "experiment_assignments_without_index_decision"})) else "truncated, unreadable, unavailable or ambiguous provider data"),
         Gate("policy_locked", is_locked(policy) and evaluation.policy_version == policy.policy_version,
              f"policy {policy.policy_version} {'locked' if is_locked(policy) else 'NOT locked'}"),
         Gate("activation_storage", bool(activation_storage_ok), "available" if activation_storage_ok else "not migrated / unavailable"),
