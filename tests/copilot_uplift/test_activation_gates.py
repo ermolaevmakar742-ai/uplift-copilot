@@ -103,6 +103,7 @@ class GateTests(unittest.TestCase):
             make_eval(missing={"provider_required_table_unavailable:uplift_assignments": 1}),
             make_eval(missing={"ambiguous_experiment_assignments": 1}),
             make_eval(missing={"invalid_experiment_assignment_rows": 1}),
+            make_eval(missing={"experiment_observation_unknown:window_open": 1}),
         ):
             report = compute_gates(evaluation, POLICY_V1, activation_storage_ok=True)
             self.assertIn("provider_data_complete", report.missing)
@@ -259,6 +260,8 @@ class KillSwitchAndInfluenceTests(unittest.TestCase):
         self.assertEqual(self.allowed(evaluation=incomplete).reason, "provider_data_incomplete")
         unreadable = make_eval(quality=Q.EXPERIMENTAL, missing={"provider_unreadable_rows:decisions": 1})
         self.assertEqual(self.allowed(evaluation=unreadable).reason, "provider_data_incomplete")
+        unknown_window = make_eval(quality=Q.EXPERIMENTAL, missing={"experiment_observation_unknown:window_open": 1})
+        self.assertEqual(self.allowed(evaluation=unknown_window).reason, "provider_data_incomplete")
         bad = make_eval(quality=Q.EXPERIMENTAL, integrity=dict(boundary_violations=0, attribution_integrity_errors=1, leakage_violations=0))
         self.assertEqual(self.allowed(evaluation=bad).reason, "integrity_failure")
         self.assertEqual(self.allowed(evaluation=make_eval(quality=Q.OBSERVATIONAL)).reason, "data_quality_below_production_bar")
