@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from copilot_evidence.contracts import ContractError
-from copilot_uplift.contract import ActivationEvent, ShadowRecord, UpliftEvaluation
+from copilot_uplift.contract import ActivationEvent, EVALUATION_CONTRACT_VERSION, ShadowRecord, UpliftEvaluation
 from copilot_uplift.store import uplift_activation_events as TA, uplift_assignments as TG, uplift_evaluations as TE, uplift_shadow as TS
 
 
@@ -129,11 +129,17 @@ class EvaluationRepository(_Repo):
     async def get(self, evaluation_id: str):
         async with self._sf() as s:
             rows = await self._select(s, TE.c.evaluation_id == evaluation_id)
-        return self._restore(rows[0]) if rows else None
+        if not rows:
+            return None
+        if rows[0]["contract_version"] != EVALUATION_CONTRACT_VERSION:
+            raise UpliftCorrupt("legacy evaluation contract cannot be used; rerun estimator v2")
+        return self._restore(rows[0])
 
     async def latest(self):
+        # Legacy v1 evaluations remain auditable in storage but must never be returned to v2 activation.
         async with self._sf() as s:
-            rows = await self._select(s, None, (TE.c.evaluation_timestamp.desc(), TE.c.evaluation_id.desc()), 1)
+            rows = await self._select(s, TE.c.contract_version == EVALUATION_CONTRACT_VERSION,
+                                      (TE.c.evaluation_timestamp.desc(), TE.c.evaluation_id.desc()), 1)
         return self._restore(rows[0]) if rows else None
 
 
