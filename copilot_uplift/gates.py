@@ -95,7 +95,7 @@ def compute_gates(evaluation: UpliftEvaluation | None, policy: UpliftPolicy, *, 
              and not any(v for k, v in evaluation.missing_signals.items()
                          if k.startswith("provider_unreadable_rows:")
                          or k.startswith("provider_required_table_unavailable:")
-                         or k in {"ambiguous_experiment_assignments", "experiment_assignments_without_index_decision"}),
+                         or k in {"ambiguous_experiment_assignments"}),
              "complete provider data" if (not evaluation.truncated and not any(
                  v for k, v in evaluation.missing_signals.items()
                  if k.startswith("provider_unreadable_rows:")
