@@ -141,6 +141,13 @@ class BaselineEvaluationTests(unittest.TestCase):
         self.assertEqual(e.metrics["treatment_samples"], 0)
         self.assertEqual(e.metrics["eligible_samples"], 1)  # exactly one assignment-level ITT sample
 
+    def test_invalid_assignment_probability_is_not_accepted(self):
+        d = self._dec(1, T0)
+        bad = ("ua_bad", 5, "CONTROL", 1.0, T0)
+        e = self._run([d], [], assignments=(bad,), now=T0 + 48 * H)
+        self.assertEqual(e.metrics["control_samples"], 0)
+        self.assertEqual(e.missing_signals["invalid_experiment_assignment_rows"], 1)
+
     def test_unassigned_holdout_decision_is_not_a_control(self):
         d = self._dec(1, T0)
         e = self._run([d], [], assignments=(), now=T0 + 48 * H)
