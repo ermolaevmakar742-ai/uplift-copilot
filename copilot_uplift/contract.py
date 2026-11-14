@@ -118,7 +118,6 @@ class UpliftEstimate:
 METRIC_KEYS = ("unique_leads", "decisions", "response_boundaries", "outcomes", "attributed_outcomes", "actions",
                "eligible_samples", "control_samples", "treatment_samples")
 COVERAGE_KEYS = ("response_boundary_coverage", "response_boundary_coverage_since_capture", "attribution_coverage")
-PROVIDER_KEYS = ("truncated", "unreadable_rows", "required_tables_available", "ambiguous_assignments")
 INTEGRITY_KEYS = ("boundary_violations", "attribution_integrity_errors", "leakage_violations")
 
 
@@ -140,7 +139,6 @@ class UpliftEvaluation:
     uplift_estimates: tuple[UpliftEstimate, ...]
     missing_signals: Mapping[str, int]
     truncated: bool = False
-    provider_integrity: Mapping[str, Any] | None = None
     contract_version: str = EVALUATION_CONTRACT_VERSION
 
     def __post_init__(self):
@@ -157,15 +155,6 @@ class UpliftEvaluation:
         if isinstance(self.sample_count, bool) or not isinstance(self.sample_count, int) or self.sample_count < 0:
             raise ContractError("sample_count must be an int >= 0")
         m, c, i, ms = _freeze(dict(self.metrics)), _freeze(dict(self.coverage)), _freeze(dict(self.integrity)), _freeze(dict(self.missing_signals))
-        pi = _freeze(dict(self.provider_integrity or {"truncated": self.truncated, "unreadable_rows": 0, "required_tables_available": True, "ambiguous_assignments": 0}))
-        _keys(pi, PROVIDER_KEYS, "provider_integrity")
-        if not isinstance(pi["truncated"], bool) or not isinstance(pi["required_tables_available"], bool):
-            raise ContractError("provider integrity flags must be bool")
-        for key in ("unreadable_rows", "ambiguous_assignments"):
-            if isinstance(pi[key], bool) or not isinstance(pi[key], int) or pi[key] < 0:
-                raise ContractError(f"provider_integrity.{key} must be an int >= 0")
-        if bool(self.truncated) != pi["truncated"]:
-            raise ContractError("truncated must match provider_integrity.truncated")
         _keys(m, METRIC_KEYS, "metrics"), _keys(c, COVERAGE_KEYS, "coverage"), _keys(i, INTEGRITY_KEYS, "integrity")
         for k, v in list(m.items()) + list(i.items()) + list(ms.items()):
             if isinstance(v, bool) or not isinstance(v, int) or v < 0:
@@ -175,7 +164,7 @@ class UpliftEvaluation:
                 raise ContractError(f"coverage {k} must be within [0, 1] or None")
         if m["eligible_samples"] != self.sample_count:
             raise ContractError("sample_count must equal metrics.eligible_samples")
-        s(self, "metrics", m), s(self, "coverage", c), s(self, "integrity", i), s(self, "missing_signals", ms), s(self, "provider_integrity", pi)
+        s(self, "metrics", m), s(self, "coverage", c), s(self, "integrity", i), s(self, "missing_signals", ms)
         s(self, "conversion_by_action", tuple(self.conversion_by_action)), s(self, "uplift_estimates", tuple(self.uplift_estimates))
         if not all(isinstance(x, ActionStats) for x in self.conversion_by_action) or not all(isinstance(x, UpliftEstimate) for x in self.uplift_estimates):
             raise ContractError("conversion_by_action / uplift_estimates hold ActionStats / UpliftEstimate")
@@ -191,13 +180,13 @@ class UpliftEvaluation:
                 "coverage": _thaw(self.coverage), "integrity": _thaw(self.integrity),
                 "conversion_by_action": [x.to_dict() for x in self.conversion_by_action],
                 "uplift_estimates": [x.to_dict() for x in self.uplift_estimates],
-                "missing_signals": _thaw(self.missing_signals), "truncated": self.truncated, "provider_integrity": _thaw(self.provider_integrity)}
+                "missing_signals": _thaw(self.missing_signals), "truncated": self.truncated}
 
     @classmethod
     def from_dict(cls, d: Mapping) -> "UpliftEvaluation":
         keys = ("contract_version", "evaluation_id", "estimator_version", "feature_version", "policy_version", "dataset_version",
                 "evaluation_timestamp", "data_quality", "sample_count", "control_status", "metrics", "coverage", "integrity",
-                "conversion_by_action", "uplift_estimates", "missing_signals", "truncated", "provider_integrity")
+                "conversion_by_action", "uplift_estimates", "missing_signals", "truncated")
         _keys(d, keys, "uplift evaluation")
         for k in ("conversion_by_action", "uplift_estimates"):
             if not isinstance(d[k], (list, tuple)):
@@ -210,7 +199,7 @@ class UpliftEvaluation:
                    metrics=d["metrics"], coverage=d["coverage"], integrity=d["integrity"],
                    conversion_by_action=tuple(ActionStats.from_dict(x) for x in d["conversion_by_action"]),
                    uplift_estimates=tuple(UpliftEstimate.from_dict(x) for x in d["uplift_estimates"]),
-                   missing_signals=d["missing_signals"], truncated=d["truncated"], provider_integrity=d["provider_integrity"], contract_version=d["contract_version"])
+                   missing_signals=d["missing_signals"], truncated=d["truncated"], contract_version=d["contract_version"])
 
 
 def evaluation_id_for(estimator_version, feature_version, policy_version, dataset_version, ts_iso, data_quality, sample_count,
