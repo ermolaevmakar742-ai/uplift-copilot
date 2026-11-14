@@ -2,7 +2,7 @@
   uplift_shadow            one Shadow Uplift record per decision (UNIQUE decision_id)
   uplift_evaluations       stored offline evaluations (snapshots)
   uplift_activation_events the activation controller's append-only history (the state is the replay of these events)
-`payload` is the contract's own to_dict(); indexed columns are verified against it on every read. PostgreSQL triggers reject UPDATE."""
+`payload` is the contract's own to_dict(); indexed columns are verified against it on every read. Database triggers reject UPDATE and DELETE."""
 from sqlalchemy import JSON, BigInteger, Column, DateTime, Float, Index, MetaData, String, Table, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -69,5 +69,17 @@ def _trigger_ddl(t: str):
 
 
 APPEND_ONLY_DDL = tuple(d for t in TABLES for d in _trigger_ddl(t))
+
+
+def _sqlite_trigger_ddl(t: str):
+    return (
+        f"""CREATE TRIGGER IF NOT EXISTS trg_{t}_no_update BEFORE UPDATE ON {t}
+        BEGIN SELECT RAISE(ABORT, '{t} is append-only'); END""",
+        f"""CREATE TRIGGER IF NOT EXISTS trg_{t}_no_delete BEFORE DELETE ON {t}
+        BEGIN SELECT RAISE(ABORT, '{t} is append-only'); END""",
+    )
+
+
+SQLITE_APPEND_ONLY_DDL = tuple(d for t in TABLES for d in _sqlite_trigger_ddl(t))
 ROLLBACK_DDL = tuple(d for t in TABLES for d in (f"DROP TRIGGER IF EXISTS trg_{t}_append_only ON {t}",
                                                  f"DROP FUNCTION IF EXISTS {t}_append_only()", f"DROP TABLE IF EXISTS {t}"))
