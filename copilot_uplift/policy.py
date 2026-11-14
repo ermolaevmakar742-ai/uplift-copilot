@@ -123,6 +123,7 @@ def recommend(vector: FeatureVector | None, evaluation: UpliftEvaluation | None,
             v for k, v in evaluation.missing_signals.items()
             if k.startswith("provider_unreadable_rows:")
             or k.startswith("provider_required_table_unavailable:")
+                         or k.startswith("experiment_observation_unknown:")
             or k in {"ambiguous_experiment_assignments", "invalid_experiment_assignment_rows"}
         ))
         return Recommendation(top.action_id, cands[1].action_id if len(cands) > 1 else None, top.value, q.value,
