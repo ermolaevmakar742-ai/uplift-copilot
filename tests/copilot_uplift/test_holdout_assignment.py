@@ -103,6 +103,13 @@ class BaselineEvaluationTests(unittest.TestCase):
         e1 = self._run([d], [], now=T0 + 48 * H)
         self.assertEqual(e1.missing_signals.get("decisions_observation_unknown:no_outcome_capture_evidence"), 1)
 
+    def test_capture_start_after_assignment_keeps_negative_outcome_unknown(self):
+        d = self._dec(1, T0)
+        late_capture = self._out("capture_late", T0 + H, chat=9)
+        e = self._run([d], [late_capture], now=T0 + 48 * H)
+        self.assertEqual(e.metrics["control_samples"], 0)
+        self.assertEqual(e.missing_signals["experiment_observation_unknown:outcome_capture_started_after_assignment"], 1)
+
     def test_windowed_outcome_after_the_holdout_window_is_not_its_outcome(self):
         d = self._dec(1, T0)
         outs = [self._out("o1", T0 + 20 * H), self._out("o0", T0 - 5 * H, chat=9)]
