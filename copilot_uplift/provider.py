@@ -144,7 +144,7 @@ class SqlUpliftProvider:
                 assignments.append((str(r["assignment_id"]), int(r["chat_id"]), r["arm"], float(p), self._t(r["decided_at"])))
             except Exception:
                 unreadable["assignments"] = unreadable.get("assignments", 0) + 1
-        truncated = (n_dec > len(drows)) or (n_out is not None and n_out > len(orows)) or (n_sent is not None and brows and len(brows) >= self._mb)
+        truncated = (n_dec > len(drows)) or (n_out is not None and n_out > len(orows)) or (n_asg is not None and n_asg > len(arows_asg)) or (n_sent is not None and n_sent > len(brows))
         return UpliftData(tuple(sorted(decisions, key=lambda d: (d["created_at"], d["decision_id"]))), tuple(boundaries), tuple(outcomes),
                           tuple(ints), int(leads), int(n_dec), n_sent, n_out, bool(truncated), unreadable, tuple(notes), tables,
                           tuple(sorted(assignments)), (int(n_asg) if n_asg is not None else None))
