@@ -128,7 +128,7 @@ class EvaluatorTests(unittest.TestCase):
             d2, b2, o2 = decs[:], bs[:], outs[:]
             rnd.shuffle(d2), rnd.shuffle(b2), rnd.shuffle(o2)
             self.assertEqual(ev(d2, b2, o2, now=T0 + 100 * H), base)
-        self.assertEqual((base.estimator_version, base.feature_version, base.policy_version), ("estimator.v1", "features.v1", "uplift-policy.v1"))
+        self.assertEqual((base.estimator_version, base.feature_version, base.policy_version), ("estimator.v2", "features.v1", "uplift-policy.v1"))
         self.assertTrue(base.dataset_version.startswith("ds_") and base.evaluation_id.startswith("ue_"))
         self.assertEqual(base.evaluation_timestamp, T0 + 100 * H)               # the timestamp is the argument, never a clock read
         changed = ev(decs, bs, outs[:-1], now=T0 + 100 * H)
