@@ -108,7 +108,7 @@ ITT effect = outcome_rate(assigned TREATMENT) - outcome_rate(assigned CONTROL)
 
 ## Установка и тесты
 
-Требуется Python 3.11+.
+Требуется Python 3.11+ и системный `ffmpeg` для полного набора creative-media тестов (Ubuntu: `sudo apt-get install ffmpeg`; macOS: `brew install ffmpeg`).
 
 ```bash
 python3.11 -m venv .venv
