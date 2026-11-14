@@ -130,10 +130,25 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
     # --- per-decision: action, features, observation
     capture_since = min((o.observed_at for o in outcomes), default=None)
     samples, vectors, missing = [], [], {}
-    asg_by_chat: dict[int, tuple] = {}
-    for a in data.assignments:
-        if isinstance(a, tuple) and len(a) == 5 and a[2] in ("CONTROL", "TREATMENT") and isinstance(a[1], int):
-            asg_by_chat.setdefault(a[1], a)
+    assignments_by_chat: dict[int, list[tuple]] = {}
+    for assignment in data.assignments:
+        if (isinstance(assignment, tuple) and len(assignment) == 5
+                and assignment[2] in ("CONTROL", "TREATMENT") and isinstance(assignment[1], int)):
+            assignments_by_chat.setdefault(assignment[1], []).append(assignment)
+    # More than one assignment for a chat is ambiguous; fail closed instead of choosing one.
+    asg_by_chat = {chat_id: rows[0] for chat_id, rows in assignments_by_chat.items() if len(rows) == 1}
+    ambiguous_assignment_chats = {chat_id for chat_id, rows in assignments_by_chat.items() if len(rows) != 1}
+    experiment_sampled_chats: set[int] = set()
+    for chat_id in ambiguous_assignment_chats:
+        miss("ambiguous_experiment_assignments")
+    # Provider integrity is part of the evaluation payload so activation can fail closed.
+    for source, count in data.unreadable.items():
+        if count:
+            miss("provider_unreadable_rows:" + str(source), int(count))
+    if data.tables:
+        for required_table in ("response_boundaries", "outcomes", "uplift_assignments"):
+            if data.tables.get(required_table) is not True:
+                miss("provider_required_table_unavailable:" + required_table)
     targets = tuple(policy.target_outcomes)
 
     def miss(k: str, n: int = 1):
@@ -151,12 +166,19 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
                 miss(("decisions_action_ambiguous:" if mapped.status is MappingStatus.AMBIGUOUS else "decisions_action_unmapped:") + mapped.reason)
         vectors.append(build_features(d["decision_id"], d["chat_id"], d["created_at"], d.get("state")))
         asg = asg_by_chat.get(d["chat_id"])
-        # Only decisions made at/after the chat's assignment belong to the experiment: earlier decisions stay observational
-        # samples (no assignment_probability), so a chat assigned today cannot contaminate the arm with its history.
-        if asg and d["created_at"] >= asg[4]:
-            prob, randomized = float(asg[3]), (asg[2] == "CONTROL" and action_id == BASELINE_ACTION_ID)
+        # One index decision per randomized unit (chat). Earlier history, later repeated decisions,
+        # ambiguous assignments and decisions inconsistent with the assigned arm remain descriptive only.
+        arm_matches = bool(asg and (
+            (asg[2] == "CONTROL" and action_id == BASELINE_ACTION_ID)
+            or (asg[2] == "TREATMENT" and action_id is not None and action_id != BASELINE_ACTION_ID)
+        ))
+        randomized = bool(asg and d["created_at"] >= asg[4] and arm_matches
+                          and d["chat_id"] not in experiment_sampled_chats)
+        if randomized:
+            experiment_sampled_chats.add(d["chat_id"])
+            prob = float(asg[3])
         else:
-            prob, randomized = None, False
+            prob = None
         if action_id == BASELINE_ACTION_ID:
             bw = _baseline_window(policy, attribution_policy)
             if bw is None:
