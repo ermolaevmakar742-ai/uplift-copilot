@@ -130,6 +130,11 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
     # --- per-decision: action, features, observation
     capture_since = min((o.observed_at for o in outcomes), default=None)
     samples, vectors, missing = [], [], {}
+    targets = tuple(policy.target_outcomes)
+
+    def miss(k: str, n: int = 1):
+        if n:
+            missing[k] = missing.get(k, 0) + n
     assignments_by_chat: dict[int, list[tuple]] = {}
     for assignment in data.assignments:
         if (isinstance(assignment, tuple) and len(assignment) == 5
@@ -149,11 +154,6 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
         for required_table in ("response_boundaries", "outcomes", "uplift_assignments"):
             if data.tables.get(required_table) is not True:
                 miss("provider_required_table_unavailable:" + required_table)
-    targets = tuple(policy.target_outcomes)
-
-    def miss(k: str, n: int = 1):
-        if n:
-            missing[k] = missing.get(k, 0) + n
     for d, ref in zip(decisions, refs):
         mapped = map_decision(d.get("regime"), d.get("trigger"), version=policy.mapping_version, registry=registry,
                               decision_path=d.get("decision_path") or "llm_reply")
@@ -220,8 +220,9 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
     integrity = {"boundary_violations": boundary_violations, "attribution_integrity_errors": attribution_errors,
                  "leakage_violations": audit_vectors(vectors)}
     dataset_version = "ds_" + _h(sorted(d["decision_id"] for d in decisions), sorted(outs_by_id), sorted(b.boundary_id for b in boundaries),
-                                 sorted(str(a[0]) for a in data.assignments if isinstance(a, tuple)),
-                                 data.unique_leads, data.decisions_total, data.outcomes_total, data.truncated, policy.mapping_version,
+                                 sorted(tuple(str(v) for v in a) for a in data.assignments if isinstance(a, tuple)),
+                                 data.unique_leads, data.decisions_total, data.outcomes_total, data.boundaries_sent_total,
+                                 data.assignments_total, dict(data.unreadable), dict(data.tables), data.truncated, policy.mapping_version,
                                  rules_fingerprint(policy.mapping_version))
     eid = evaluation_id_for(ESTIMATOR_VERSION, FEATURE_VERSION, policy.policy_version, dataset_version, evaluated_at.isoformat(),
                             est.data_quality.value, est.eligible, est.control_status, metrics, est.stats, est.estimates)
