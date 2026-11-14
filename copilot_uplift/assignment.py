@@ -23,7 +23,8 @@ logger = logging.getLogger("copilot_uplift")
 
 CONTRACT_VERSION = "uplift_assignment.v1"
 KILL_SWITCH_ENV = "COPILOT_UPLIFT_ASSIGN_ENABLED"
-SALT = "uplift-assign.v1"
+SALT_ENV = "COPILOT_UPLIFT_ASSIGN_SALT"
+SALT = "uplift-assign.v1"  # deterministic fallback for pure unit tests only; production never uses it
 CONTROL_SHARE = 0.10
 CONTROL, TREATMENT = "CONTROL", "TREATMENT"
 _ARMS = (CONTROL, TREATMENT)
@@ -38,36 +39,45 @@ def arm_for(chat_id, *, salt: str = SALT, control_share: float = CONTROL_SHARE) 
     return CONTROL if (h / float(2 ** 64)) < control_share else TREATMENT
 
 
-def assignment_id(chat_id, arm: str, *, contract_version: str = CONTRACT_VERSION) -> str:
+def assignment_id(chat_id, arm: str, *, contract_version: str = CONTRACT_VERSION, salt: str = SALT) -> str:
     if arm not in _ARMS:
         raise ValueError(f"arm must be one of {_ARMS}")
-    return "ua_" + hashlib.sha256(f"{contract_version}|{SALT}|{chat_id}|{arm}".encode()).hexdigest()[:20]
+    return "ua_" + hashlib.sha256(f"{contract_version}|{salt}|{chat_id}|{arm}".encode()).hexdigest()[:20]
 
 
 def assigned_arm(chat_id, env: Mapping | None = None) -> str | None:
-    """arm for the chat when the experiment is enabled, else None. The kill switch is read here only."""
-    v = (os.environ if env is None else env).get(KILL_SWITCH_ENV, "false")
+    """Return an arm only when the kill switch and a stable high-entropy deployment salt are present."""
+    source = os.environ if env is None else env
+    v = source.get(KILL_SWITCH_ENV, "false")
+    salt = source.get(SALT_ENV)
     if not (isinstance(v, str) and v.strip().lower() in _ON):
         return None
-    return arm_for(chat_id)
+    if not isinstance(salt, str) or len(salt) < 32:
+        logger.error("%s must contain at least 32 characters; refusing deterministic public-salt assignment", SALT_ENV)
+        return None
+    return arm_for(chat_id, salt=salt)
 
 
 def probability(arm: str) -> float:
     return CONTROL_SHARE if arm == CONTROL else round(1.0 - CONTROL_SHARE, 6)
 
 
-def to_payload(chat_id, arm: str, *, context: str = "followup_holdout_gate") -> dict:
-    return {"contract_version": CONTRACT_VERSION, "assignment_id": assignment_id(chat_id, arm), "chat_id": chat_id,
+def to_payload(chat_id, arm: str, *, context: str = "followup_holdout_gate", salt: str = SALT) -> dict:
+    return {"contract_version": CONTRACT_VERSION, "assignment_id": assignment_id(chat_id, arm, salt=salt), "chat_id": chat_id,
             "arm": arm, "assignment_probability": probability(arm), "context": context}
 
 
 async def record_assignment(session_factory: Callable, chat_id, arm: str, *, clock: Callable[[], datetime] | None = None,
-                            context: str = "followup_holdout_gate") -> bool:
+                            context: str = "followup_holdout_gate", salt: str | None = None) -> bool:
     """Append-only persist. Idempotent: the same chat/arm -> False (row exists), never an error to the caller. Never raises."""
     from copilot_uplift.repository import AssignmentRepository
     try:
+        salt = salt if salt is not None else os.environ.get(SALT_ENV)
+        if not isinstance(salt, str) or len(salt) < 32:
+            logger.error("%s must contain at least 32 characters; refusing to persist assignment", SALT_ENV)
+            return False
         now = (clock or datetime.now)().astimezone(timezone.utc) if clock else datetime.now(timezone.utc)
-        row = to_payload(chat_id, arm, context=context)
+        row = to_payload(chat_id, arm, context=context, salt=salt)
         return await AssignmentRepository(session_factory).save(
             assignment_id=row["assignment_id"], chat_id=row["chat_id"], arm=row["arm"],
             assignment_probability=row["assignment_probability"], decided_at=now,
