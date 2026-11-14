@@ -101,7 +101,7 @@ class BaselineEvaluationTests(unittest.TestCase):
         e2 = self._run([d], [ev_out], now=T0 + 6 * H)
         self.assertEqual(e2.missing_signals.get("experiment_observation_unknown:window_open"), 1)
         e1 = self._run([d], [], now=T0 + 48 * H)
-        self.assertEqual(e1.missing_signals.get("decisions_observation_unknown:no_outcome_capture_evidence"), 1)
+        self.assertEqual(e1.missing_signals.get("experiment_observation_unknown:no_outcome_capture_evidence"), 1)
 
     def test_capture_start_after_assignment_keeps_negative_outcome_unknown(self):
         d = self._dec(1, T0)
