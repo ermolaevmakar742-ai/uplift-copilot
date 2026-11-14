@@ -1,17 +1,13 @@
 """Randomized holdout assignment (contract uplift_assignment.v1).
 
-A deterministic per-chat coin decides the arm BEFORE any proactive action:
-  CONTROL   (p = CONTROL_SHARE = 0.10): the follow-up worker skips the proactive follow-up (real silence, the DO_NOTHING arm)
-  TREATMENT (p = 1 - CONTROL_SHARE):   follow-ups behave exactly as before
-Reactive replies (user-initiated) are NEVER randomized: the experiment touches proactive contact only.
+A deterministic per-chat coin is computed with a deployment-provided secret salt BEFORE any proactive action:
+  CONTROL   (p = CONTROL_SHARE = 0.10): the follow-up worker skips proactive follow-up (the DO_NOTHING arm)
+  TREATMENT (p = 1 - CONTROL_SHARE):   ordinary proactive follow-ups continue
+Reactive replies (user-initiated) are NEVER randomized.
 
-The coin is sha256-based: the same chat_id always yields the same arm, the assignment is replayable without storage, and it
-cannot be re-rolled. The append-only `uplift_assignments` row is the audit trail and the estimator join, NOT the source of
-the coin. A row is written once per chat (unique chat_id; duplicates are ignored, never overwritten).
-
-Kill switch COPILOT_UPLIFT_ASSIGN_ENABLED (default false): off -> assigned_arm() returns None -> no assignment, no behavior
-change. Like COPILOT_UPLIFT_ENABLED it can only ever ADD the experiment when an operator sets it; every consumer must treat
-None as "no randomization information" (estimator: control stays unavailable).
+The same chat_id and unchanged salt yield the same arm. The salt must remain stable for the experiment lifetime;
+rotating it requires a new experiment version. The append-only assignment row is the audit trail and estimator join.
+Production assignment refuses to run without a high-entropy salt from COPILOT_UPLIFT_ASSIGN_SALT.
 """
 import hashlib
 import logging
@@ -39,7 +35,9 @@ def arm_for(chat_id, *, salt: str = SALT, control_share: float = CONTROL_SHARE) 
     return CONTROL if (h / float(2 ** 64)) < control_share else TREATMENT
 
 
-def assignment_id(chat_id, arm: str, *, contract_version: str = CONTRACT_VERSION, salt: str = SALT) -> str:
+def assignment_id(chat_id, arm: str, *, contract_version: str = CONTRACT_VERSION, salt: str | None = None) -> str:
+    if not isinstance(salt, str) or len(salt) < 32:
+        raise ValueError("a stable assignment salt of at least 32 characters is required")
     if arm not in _ARMS:
         raise ValueError(f"arm must be one of {_ARMS}")
     return "ua_" + hashlib.sha256(f"{contract_version}|{salt}|{chat_id}|{arm}".encode()).hexdigest()[:20]
@@ -62,7 +60,9 @@ def probability(arm: str) -> float:
     return CONTROL_SHARE if arm == CONTROL else round(1.0 - CONTROL_SHARE, 6)
 
 
-def to_payload(chat_id, arm: str, *, context: str = "followup_holdout_gate", salt: str = SALT) -> dict:
+def to_payload(chat_id, arm: str, *, context: str = "followup_holdout_gate", salt: str | None = None) -> dict:
+    if not isinstance(salt, str) or len(salt) < 32:
+        raise ValueError("a stable assignment salt of at least 32 characters is required")
     return {"contract_version": CONTRACT_VERSION, "assignment_id": assignment_id(chat_id, arm, salt=salt), "chat_id": chat_id,
             "arm": arm, "assignment_probability": probability(arm), "context": context}
 
