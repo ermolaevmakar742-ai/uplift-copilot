@@ -222,7 +222,7 @@ def evaluate_uplift(data: UpliftData, policy: UpliftPolicy, *, evaluated_at: dat
                                  rules_fingerprint(policy.mapping_version))
     eid = evaluation_id_for(ESTIMATOR_VERSION, FEATURE_VERSION, policy.policy_version, dataset_version, evaluated_at.isoformat(),
                             est.data_quality.value, est.eligible, est.control_status, metrics, est.stats, est.estimates,
-                            dict(sorted(missing.items())), bool(data.truncated))
+                            dict(sorted(missing.items())), bool(data.truncated), coverage, integrity)
     return UpliftEvaluation(eid, ESTIMATOR_VERSION, FEATURE_VERSION, policy.policy_version, dataset_version, evaluated_at,
                             est.data_quality, est.eligible, est.control_status, metrics, coverage, integrity, est.stats,
                             est.estimates, dict(sorted(missing.items())), bool(data.truncated))
