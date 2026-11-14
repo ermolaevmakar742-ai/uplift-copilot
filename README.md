@@ -1,3 +1,5 @@
+[![tests](https://github.com/ermolaevmakar742-ai/uplift-copilot/actions/workflows/tests.yml/badge.svg)](https://github.com/ermolaevmakar742-ai/uplift-copilot/actions/workflows/tests.yml)
+
 # Uplift Copilot
 
 **Набор Python-модулей для измерения и аудита CRM-решений, attribution и экспериментальных политик.**
