@@ -40,8 +40,9 @@ class ArmTests(unittest.TestCase):
         self.assertIn(assigned_arm(7, env={KILL_SWITCH_ENV: "true", SALT_ENV: test_salt}), (CONTROL, TREATMENT))
 
     def test_assignment_id_stable_and_probability(self):
-        self.assertEqual(assignment_id(5, CONTROL), assignment_id(5, CONTROL))
-        self.assertNotEqual(assignment_id(5, CONTROL), assignment_id(6, CONTROL))
+        test_salt = "unit-test-assignment-salt-32-characters"
+        self.assertEqual(assignment_id(5, CONTROL, salt=test_salt), assignment_id(5, CONTROL, salt=test_salt))
+        self.assertNotEqual(assignment_id(5, CONTROL, salt=test_salt), assignment_id(6, CONTROL, salt=test_salt))
         self.assertAlmostEqual(probability(CONTROL), 0.10)
         self.assertAlmostEqual(probability(TREATMENT), 0.90)
 
