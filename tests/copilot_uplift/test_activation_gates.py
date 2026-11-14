@@ -17,7 +17,7 @@ GOOD_METRICS = dict(unique_leads=500, decisions=900, response_boundaries=800, ou
                     eligible_samples=400, control_samples=0, treatment_samples=400)
 
 
-def make_eval(metrics=None, quality=Q.OBSERVATIONAL, integrity=None, coverage=None, ts=T0, policy_version=POLICY_V1.policy_version, estimates=(),
+def make_eval(metrics=None, quality=Q.EXPERIMENTAL, integrity=None, coverage=None, ts=T0, policy_version=POLICY_V1.policy_version, estimates=(),
               observed=("ASK_QUESTION", "BUILD_TRUST", "FOLLOW_UP"), stats=None, missing=None, truncated=False):
     m = {**GOOD_METRICS, "actions": len(observed), **(metrics or {})}
     stats = tuple(stats) if stats is not None else tuple(ActionStats(a, 10, 3, 7, 0, 0.3) for a in observed)
