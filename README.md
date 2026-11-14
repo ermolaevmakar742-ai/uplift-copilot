@@ -122,7 +122,7 @@ python -m pytest tests -q
 
 ### Статус тестирования
 
-В предыдущем README было заявлено **896 passed / 0 failed** — это исторический результат, сообщённый автором. В этой ветке добавлен GitHub Actions workflow, который запускает полный pytest suite; число тестов и результат нужно брать из актуального зелёного run, а не из старого README.
+GitHub Actions на ветке `fix/uplift-experiment-integrity`: **909 passed / 0 failed, 2 warnings, 71 subtests passed** ([run](https://github.com/ermolaevmakar742-ai/uplift-copilot/actions/runs/43614174905)). Запуск выполнен на Python 3.11 с установленным ffmpeg. Это подтверждает тестовый набор публичного репозитория, но не заменяет сквозную проверку host-приложения и production-интеграций.
 
 ## Запуск миграций
 
@@ -174,7 +174,7 @@ python -m copilot_decisions.migrate --apply
 6. **Responsible Gambling signals.** Психологический shadow-hook получает ограниченный decision snapshot; реальные risk-сигналы несовершеннолетия, самоисключения и финансового кризиса не поступают в этот путь из проверенного источника. Этот модуль нельзя считать работающим enforcement-контуром.
 7. **Неизменяемость Decision Ledger.** Для отдельного `copilot_decisions` хранилища нужно отдельно подтвердить DB-level запрет `DELETE` и SQLite-триггеры; Python insert-only API недостаточно. Таблицы `copilot_uplift` в этой ветке уже получают DB-триггеры, блокирующие `UPDATE` и `DELETE` в PostgreSQL и SQLite.
 8. **Host-интеграция.** Публичный snapshot не содержит приложения, которое подключает все роутеры, hooks, auth, фоновые задачи и production-источники. Сквозное поведение работающей системы здесь не подтверждено.
-9. **CI/release.** В этой ветке добавлен GitHub Actions workflow для pytest, но его первый прогон ещё не подтверждён зелёным статусом. Основная ветка пока не защищена branch protection.
+9. **CI/release.** В этой ветке GitHub Actions завершился зелёным прогоном: 909 тестов passed. Основная ветка пока не защищена branch protection; CI будет применяться после слияния PR.
 
 ## Перед production
 
